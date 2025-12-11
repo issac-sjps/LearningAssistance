@@ -3,180 +3,322 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助成長測驗 - 通知單產生器</title>
+    <title>學習扶助測驗管理系統</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: "標楷體", "KaiTi", "Microsoft JhengHei", serif; margin: 20px; background-color: #f4f4f4; }
+        body { font-family: "Microsoft JhengHei", sans-serif; margin: 0; background-color: #f4f4f4; }
         
-        /* 設定區域樣式 (列印時會隱藏) */
-        #control-panel {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            max-width: 900px;
-            margin: 0 auto 20px auto;
-        }
-        h2 { margin-top: 0; color: #333; font-family: sans-serif; }
-        .config-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        .config-row label { font-weight: bold; width: 60px; }
-        input[type="text"], input[type="time"] { padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
-        .btn { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        .btn:hover { background-color: #0056b3; }
-        .btn-print { background-color: #28a745; margin-left: 10px; }
-        .file-upload { margin: 15px 0; padding: 15px; border: 2px dashed #ccc; text-align: center; }
-
-        /* 明條預覽區域 */
-        #preview-area {
+        /* 頂部導航列 */
+        .navbar {
+            background-color: #333;
+            color: white;
+            padding: 15px;
             display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 20px;
+            justify-content: space-between;
+            align-items: center;
         }
-
-        /* ----- 明條本身的樣式 (模仿圖片) ----- */
-        .slip-container {
-            width: 100%;
-            max-width: 800px; /* A4 寬度約 210mm，稍微縮小一點避免超出 */
-            background: white;
-            padding: 10px 0;
-            page-break-inside: avoid; /* 避免列印時被切斷 */
-            margin-bottom: 20px;
+        .navbar h1 { margin: 0; font-size: 20px; }
+        .nav-tabs button {
+            background: none;
+            border: none;
+            color: #ddd;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 16px;
         }
-
-        .slip-title {
-            text-align: center;
-            font-size: 20px;
+        .nav-tabs button.active {
+            color: white;
+            border-bottom: 3px solid #4CAF50;
             font-weight: bold;
-            margin-bottom: 5px;
         }
 
-        table.slip-table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 1px solid black;
-            text-align: center;
+        /* 主容器 */
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        .slip-table th, .slip-table td {
-            border: 1px solid black;
-            padding: 5px;
-            vertical-align: middle;
-            font-size: 18px;
+        /* 設定區塊 */
+        .settings-box {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
         }
 
-        .slip-table th { background-color: #fff; height: 40px; font-weight: normal; }
-        .slip-table td { height: 80px; } /* 增加內容高度 */
+        .config-row { margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+        .config-row label { width: 60px; font-weight: bold; }
+        input[type="text"] { padding: 5px; border: 1px solid #ccc; border-radius: 3px; }
 
-        /* 特殊文字顏色 */
+        /* 按鈕樣式 */
+        .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; color: white; font-size: 14px; margin-right: 5px;}
+        .btn-blue { background-color: #007bff; }
+        .btn-green { background-color: #28a745; }
+        .btn-red { background-color: #dc3545; }
+        .btn-gray { background-color: #6c757d; }
+        .btn:hover { opacity: 0.9; }
+
+        /* 資料表格樣式 */
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        .data-table th { background-color: #f2f2f2; }
+        .data-table tr:hover { background-color: #f1f1f1; }
+
+        /* 分類過濾按鈕區 */
+        .filter-bar { margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+
+        /* 隱藏/顯示控制 */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ----- 明條列印樣式 (與之前相同) ----- */
+        .slip-container {
+            width: 100%; max-width: 800px; background: white;
+            padding: 10px 0; page-break-inside: avoid; margin-bottom: 20px; border-bottom: 1px dashed #ccc;
+        }
+        .slip-title { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 5px; font-family: "標楷體"; }
+        table.slip-table { width: 100%; border-collapse: collapse; border: 1px solid black; text-align: center; font-family: "標楷體"; }
+        .slip-table th, .slip-table td { border: 1px solid black; padding: 5px; vertical-align: middle; font-size: 18px; }
+        .slip-table th { height: 40px; font-weight: normal; }
+        .slip-table td { height: 80px; }
         .text-red { color: red; font-weight: bold; }
         .text-left { text-align: left; padding-left: 15px; }
-        
-        /* 核取方塊模擬 */
         .checkbox-item { display: block; margin: 3px 0; text-align: left; margin-left: 10px; }
         .square { display: inline-block; width: 14px; height: 14px; line-height: 14px; margin-right: 5px; }
 
-        /* ----- 列印專用樣式 ----- */
+        /* 列印模式 */
         @media print {
-            body { background-color: white; margin: 0; }
-            #control-panel { display: none; }
-            .slip-container { margin-bottom: 0; border-bottom: 1px dashed #ccc; padding: 20px 0; }
-            /* 每頁放幾個可以調整，這裡設為盡量不切斷 */
-            .slip-container { page-break-inside: avoid; }
+            .navbar, .settings-box, .btn-section, .filter-bar, #tab-data { display: none !important; }
+            .container { box-shadow: none; margin: 0; padding: 0; max-width: 100%; }
+            .tab-content { display: block; } /* 強制顯示內容 */
+            #tab-preview { display: block !important; } /* 只顯示預覽區 */
+            body { background: white; }
+            .slip-container { border-bottom: 1px dashed #999; margin-bottom: 0; padding: 20px 0; }
         }
     </style>
 </head>
 <body>
 
-<div id="control-panel">
-    <h2>1. 設定考試資訊 (依年級)</h2>
-    <div id="grade-settings">
+    <div class="navbar">
+        <h1>測驗通知單系統</h1>
+        <div class="nav-tabs">
+            <button class="active" onclick="switchTab('data')">1. 資料管理與篩選</button>
+            <button onclick="switchTab('preview')">2. 列印預覽 (產生明條)</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="settings-box">
+            <h3 style="margin-top:0">第一步：匯入與設定</h3>
+            <input type="file" id="uploadFile" accept=".csv, .xlsx, .xls" />
+            <span style="color: #666; font-size: 14px; margin-left: 10px;">(請上傳含有 年級、班級、姓名、科目 的 Excel)</span>
         </div>
 
-    <h2>2. 上傳學生名冊 (Excel/CSV)</h2>
-    <div class="file-upload">
-        <input type="file" id="uploadFile" accept=".csv, .xlsx, .xls" />
-        <p style="color: #666; font-size: 12px; margin-top:5px;">
-            請確保 Excel 有標題列：包含「目前年級」、「班級」、「姓名」、「國語文測驗」、「數學測驗」、「英語測驗」
-        </p>
-    </div>
+        <div id="tab-data" class="tab-content active">
+            <div class="filter-bar">
+                <strong>檢視篩選：</strong>
+                <button class="btn btn-gray" onclick="renderTable('all')">顯示總表 (可刪除)</button>
+                <button class="btn btn-blue" onclick="renderTable('chi')">只看國語</button>
+                <button class="btn btn-blue" onclick="renderTable('math')">只看數學</button>
+                <button class="btn btn-blue" onclick="renderTable('eng')">只看英語</button>
+                
+                <button class="btn btn-green" style="float: right;" onclick="exportExcel()">匯出目前名單 (Excel)</button>
+            </div>
+            
+            <div id="table-container">
+                <p style="text-align: center; color: #888; padding: 20px;">請先上傳檔案以檢視資料。</p>
+            </div>
+        </div>
 
-    <div style="text-align: center;">
-        <button class="btn" onclick="processData()">產生明條</button>
-        <button class="btn btn-print" onclick="window.print()">列印 / 存成 PDF</button>
+        <div id="tab-preview" class="tab-content">
+            <div class="settings-box">
+                <h3 style="margin-top:0">第二步：設定各年級考試資訊</h3>
+                <div id="grade-settings"></div>
+                <div style="margin-top: 15px; text-align: center;">
+                    <button class="btn btn-blue" onclick="generateSlips()">更新/產生明條</button>
+                    <button class="btn btn-green" onclick="window.print()">🖨️ 列印</button>
+                </div>
+            </div>
+            <div id="slips-area"></div>
+        </div>
     </div>
-</div>
-
-<div id="preview-area"></div>
 
 <script>
-    // 初始化設定介面 (1~6年級)
+    // 全域變數儲存資料
+    let globalStudents = []; 
+
+    // 初始化年級設定欄位
     const gradeSettingsContainer = document.getElementById('grade-settings');
     for (let i = 1; i <= 6; i++) {
         const div = document.createElement('div');
         div.className = 'config-row';
         div.innerHTML = `
             <label>${i} 年級</label>
-            <input type="text" id="loc-${i}" placeholder="測驗地點 (例: 3F-E化教室)" value="3F-E 化教室" style="width: 150px;">
-            <input type="text" id="date-${i}" placeholder="日期 (例: 12/2(二))" value="12/2(二) 早自修" style="width: 150px;">
-            <input type="text" id="time-${i}" placeholder="時間 (例: 7:50~8:30)" value="7:50~8:30" style="width: 120px;">
+            <input type="text" id="loc-${i}" placeholder="測驗地點" value="3F-E 化教室" style="width: 150px;">
+            <input type="text" id="date-${i}" placeholder="日期" value="12/2(二) 早自修" style="width: 150px;">
+            <input type="text" id="time-${i}" placeholder="時間" value="7:50~8:30" style="width: 120px;">
         `;
         gradeSettingsContainer.appendChild(div);
     }
 
-    let excelData = [];
-
-    // 監聽檔案上傳
+    // 檔案上傳監聽
     document.getElementById('uploadFile').addEventListener('change', (e) => {
         const file = e.target.files[0];
         const reader = new FileReader();
         reader.onload = function(e) {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, {type: 'array'});
-            const firstSheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[firstSheetName];
-            // 轉換為 JSON，第一列為標題
-            excelData = XLSX.utils.sheet_to_json(worksheet);
-            alert(`已讀取 ${excelData.length} 筆資料，請按「產生明條」`);
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rawData = XLSX.utils.sheet_to_json(worksheet);
+            
+            // 資料正規化 (整理成統一格式)
+            globalStudents = rawData.map((row, index) => {
+                return {
+                    id: index, // 給予唯一 ID 方便刪除
+                    grade: (row['目前年級'] || row['年級'] || '').toString().trim(),
+                    cls: (row['班級'] || '').toString().trim(),
+                    name: (row['姓名'] || '').toString().trim(),
+                    // 判斷是否有值 (有值就代表要考)
+                    chi: (row['國語文測驗'] || row['國語'] || '').toString().trim(),
+                    math: (row['數學測驗'] || row['數學'] || '').toString().trim(),
+                    eng: (row['英語測驗'] || row['英語'] || '').toString().trim(),
+                    // 保留原始物件以便需要時查看其他欄位
+                    raw: row
+                };
+            });
+
+            alert(`成功匯入 ${globalStudents.length} 筆資料`);
+            renderTable('all'); // 預設顯示總表
         };
         reader.readAsArrayBuffer(file);
     });
 
-    function processData() {
-        if (excelData.length === 0) {
-            alert("請先上傳 Excel 檔案！");
+    // 切換分頁
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
+        
+        if (tabName === 'data') {
+            document.getElementById('tab-data').classList.add('active');
+            document.querySelector('.nav-tabs button:nth-child(1)').classList.add('active');
+        } else {
+            document.getElementById('tab-preview').classList.add('active');
+            document.querySelector('.nav-tabs button:nth-child(2)').classList.add('active');
+            generateSlips(); // 切換到預覽時自動產生
+        }
+    }
+
+    // 渲染資料表格
+    function renderTable(filterType) {
+        const container = document.getElementById('table-container');
+        let filteredData = [];
+        let title = "";
+
+        // 根據類型篩選
+        if (filterType === 'all') {
+            filteredData = globalStudents;
+            title = "總表 (全部學生)";
+        } else if (filterType === 'chi') {
+            filteredData = globalStudents.filter(s => s.chi.length > 0);
+            title = "國語文測驗名單";
+        } else if (filterType === 'math') {
+            filteredData = globalStudents.filter(s => s.math.length > 0);
+            title = "數學測驗名單";
+        } else if (filterType === 'eng') {
+            filteredData = globalStudents.filter(s => s.eng.length > 0);
+            title = "英語測驗名單";
+        }
+
+        if (filteredData.length === 0) {
+            container.innerHTML = `<h4>${title}：目前沒有資料</h4>`;
             return;
         }
 
-        const container = document.getElementById('preview-area');
-        container.innerHTML = ''; // 清空舊資料
+        let html = `<h4>${title} (共 ${filteredData.length} 人)</h4>`;
+        html += `<table class="data-table"><thead><tr>
+            <th>年級</th><th>班級</th><th>姓名</th>
+            <th>國語</th><th>數學</th><th>英語</th>
+            ${filterType === 'all' ? '<th>操作</th>' : ''}
+        </tr></thead><tbody>`;
 
-        excelData.forEach(student => {
-            // 讀取學生資料 (請確保 Excel 標題名稱對應這裡)
-            // 容錯處理：去除空白
-            const grade = String(student['目前年級'] || student['年級'] || '').trim();
-            const cls = student['班級'] || '';
-            const name = student['姓名'] || '';
-            
-            // 判斷科目 (若欄位有值，視為要考)
-            const isChinese = (student['國語文測驗'] || student['國語'] || '').toString().trim().length > 0;
-            const isMath = (student['數學測驗'] || student['數學'] || '').toString().trim().length > 0;
-            const isEnglish = (student['英語測驗'] || student['英語'] || '').toString().trim().length > 0;
+        filteredData.forEach(s => {
+            html += `<tr>
+                <td>${s.grade}</td>
+                <td>${s.cls}</td>
+                <td>${s.name}</td>
+                <td>${s.chi ? '✅' : ''}</td>
+                <td>${s.math ? '✅' : ''}</td>
+                <td>${s.eng ? '✅' : ''}</td>
+                ${filterType === 'all' ? `<td><button class="btn btn-red" onclick="deleteStudent(${s.id})">刪除</button></td>` : ''}
+            </tr>`;
+        });
 
-            // 取得該年級的設定
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+    }
+
+    // 刪除學生
+    function deleteStudent(id) {
+        if (!confirm("確定要將這位學生從名單中移除嗎？")) return;
+        
+        // 從 globalStudents 中移除
+        globalStudents = globalStudents.filter(s => s.id !== id);
+        
+        // 重新渲染表格
+        renderTable('all');
+    }
+
+    // 匯出 Excel
+    function exportExcel() {
+        if (globalStudents.length === 0) { alert("沒有資料可匯出"); return; }
+
+        // 將資料轉換回 Excel 格式
+        const exportData = globalStudents.map(s => ({
+            "年級": s.grade,
+            "班級": s.cls,
+            "姓名": s.name,
+            "國語文測驗": s.chi, // 保留原始標記 (例如 X)
+            "數學測驗": s.math,
+            "英語測驗": s.eng
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "最新名單");
+        XLSX.writeFile(wb, "整理後名單.xlsx");
+    }
+
+    // 產生明條 (列印用)
+    function generateSlips() {
+        const container = document.getElementById('slips-area');
+        container.innerHTML = '';
+
+        if (globalStudents.length === 0) {
+            container.innerHTML = '<p style="text-align:center">請先匯入資料。</p>';
+            return;
+        }
+
+        globalStudents.forEach(s => {
+            // 取得該年級設定
             let loc = "未設定";
             let date = "";
             let time = "";
-            
-            const locInput = document.getElementById(`loc-${grade}`);
+            const locInput = document.getElementById(`loc-${s.grade}`);
             if (locInput) {
                 loc = locInput.value;
-                date = document.getElementById(`date-${grade}`).value;
-                time = document.getElementById(`time-${grade}`).value;
+                date = document.getElementById(`date-${s.grade}`).value;
+                time = document.getElementById(`time-${s.grade}`).value;
             }
 
-            // 產生 HTML
+            const isChinese = s.chi.length > 0;
+            const isMath = s.math.length > 0;
+            const isEnglish = s.eng.length > 0;
+
             const slipHTML = `
                 <div class="slip-container">
                     <div class="slip-title">教育部-新莊國小-學習扶助-成長測驗 (請協助貼施測當週聯絡簿)</div>
@@ -194,13 +336,11 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td>${grade}</td>
-                                <td>${cls}</td>
-                                <td>${name}</td>
+                                <td>${s.grade}</td>
+                                <td>${s.cls}</td>
+                                <td>${s.name}</td>
                                 <td class="text-red">${loc}</td>
-                                <td class="text-red">
-                                    ${date}<br>${time}
-                                </td>
+                                <td class="text-red">${date}<br>${time}</td>
                                 <td class="text-left">
                                     <div class="checkbox-item"><span class="square">${isChinese ? '■' : '□'}</span>國語</div>
                                     <div class="checkbox-item"><span class="square">${isMath ? '■' : '□'}</span>數學</div>
