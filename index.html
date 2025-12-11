@@ -3,170 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助測驗管理系統</title>
+    <title>學習扶助測驗系統 v18.0 (省紙列印版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: "Microsoft JhengHei", sans-serif; margin: 0; background-color: #f4f4f4; }
+        /* --- 全域設定 --- */
+        * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
+        body { font-family: "Microsoft JhengHei", "微軟正黑體", sans-serif; margin: 0; background-color: #f4f4f4; }
         
-        /* 頂部導航列 */
+        /* --- 顏色定義 (統計用) --- */
+        .stat-chi { color: #cc0000; font-weight: bold; }
+        .stat-math { color: #00008B; font-weight: bold; }
+        .stat-eng { color: #006400; font-weight: bold; }
+        .stat-total-row { background-color: #f0f0f0; font-weight: bold; border-top: 2px solid #666; }
+        .stat-student-count { font-weight: bold; color: #333; background-color: #e8f0fe; }
+
+        /* --- 列印專用設定 --- */
+        @media print {
+            @page { margin: 5mm; size: A4 portrait; }
+            
+            /* 強制隱藏所有非列印元素 */
+            .navbar, .settings-box, .nav-buttons, .print-mode-selector, .btn, .filter-bar, h3, p, .hint-text, label, .class-selector-container, .btn-group, .config-row { 
+                display: none !important; 
+            }
+            
+            body { background: white; margin: 0; padding: 0; }
+            .container { box-shadow: none; margin: 0; padding: 0; max-width: 100%; width: 100%; }
+            
+            /* 控制只顯示當前要印的區域 */
+            #print-section-slips, #print-section-list, #print-section-stats, #print-section-teachers { display: none; }
+            
+            /* 顯示對應區塊 */
+            body.print-slips #print-section-slips { display: block !important; }
+            body.print-list #print-section-list { display: block !important; }
+            body.print-stats #print-section-stats { display: block !important; }
+            
+            /* 導師名單 - 兩種模式共用顯示 */
+            body.print-teachers #print-section-teachers,
+            body.print-teachers-compact #print-section-teachers { display: block !important; }
+            
+            /* --- 模式 A: 導師名單 (分頁) --- */
+            body.print-teachers .page-break { 
+                page-break-after: always; 
+                display: block; 
+                height: 0; 
+            }
+
+            /* --- 模式 B: 導師名單 (不分頁/省紙) --- */
+            body.print-teachers-compact .teacher-block {
+                page-break-inside: avoid; /* 盡量不要把一個班切兩半 */
+                margin-bottom: 5px;
+            }
+            
+            body.print-teachers-compact .page-break { 
+                page-break-after: auto; /* 取消強制換頁 */
+                display: block;
+                border-bottom: 2px dashed #999; /* 虛線裁切線 */
+                margin: 25px 0 25px 0; /* 上下留白 */
+                height: 1px;
+                position: relative;
+            }
+
+            /* 加入裁切線文字 */
+            body.print-teachers-compact .page-break::after {
+                content: "✂️ 裁切線";
+                position: absolute;
+                left: 50%;
+                top: -12px;
+                transform: translateX(-50%);
+                background: white;
+                padding: 0 10px;
+                color: #666;
+                font-size: 10pt;
+            }
+            
+            /* 隱藏最後一個裁切線 (美觀) */
+            body.print-teachers-compact .page-break:last-child {
+                display: none;
+            }
+
+            /* 表格列印優化 */
+            table { width: 100% !important; margin: 0 auto; page-break-inside: avoid; margin-bottom: 20px; }
+            th, td { padding: 4px; }
+            
+            /* 導師名單專用縮小字體 */
+            .teacher-table th, .teacher-table td { font-size: 9pt !important; padding: 2px 4px !important; }
+            .teacher-header { font-size: 14pt !important; }
+        }
+
+        /* --- 介面樣式 --- */
         .navbar {
-            background-color: #333;
-            color: white;
-            padding: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            background-color: #2c3e50; color: white; padding: 15px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
         }
-        .navbar h1 { margin: 0; font-size: 20px; }
-        .nav-tabs button {
-            background: none;
-            border: none;
-            color: #ddd;
-            padding: 10px 20px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        .nav-tabs button.active {
-            color: white;
-            border-bottom: 3px solid #4CAF50;
-            font-weight: bold;
-        }
-
-        /* 主容器 */
+        .nav-buttons { display: flex; gap: 5px; flex-wrap: wrap; }
         .container {
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            max-width: 1100px; margin: 20px auto; padding: 20px;
+            background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
-
-        /* 設定區塊 */
         .settings-box {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 20px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
+            border: 2px solid #e0e0e0; padding: 20px; margin-bottom: 20px;
+            background-color: #fff; border-radius: 8px;
         }
+        .config-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; border-bottom: 1px dashed #eee; padding-bottom: 5px; flex-wrap: wrap; }
+        .config-row label { font-weight: bold; width: 60px; flex-shrink: 0; }
+        input[type="text"] { padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+        
+        /* 針對分科時間設定的樣式 */
+        .subject-group { 
+            display: flex; flex-direction: column; gap: 5px; 
+            border-left: 3px solid #ccc; padding-left: 10px; margin-right: 15px;
+        }
+        .subject-group.chi { border-left-color: #cc0000; }
+        .subject-group.math { border-left-color: #00008B; }
+        .subject-group.eng { border-left-color: #006400; }
+        
+        .time-row { display: flex; align-items: center; gap: 5px; }
+        .time-label { font-size: 14px; font-weight: bold; width: 40px; }
+        
+        /* 輸入框寬度調整 */
+        .input-time { width: 160px; }
+        .input-loc { width: 120px; }
 
-        .config-row { margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
-        .config-row label { width: 60px; font-weight: bold; }
-        input[type="text"] { padding: 5px; border: 1px solid #ccc; border-radius: 3px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; transition: 0.2s; font-size: 14px; }
+        .btn-blue { background-color: #3498db; } .btn-blue:hover { background-color: #2980b9; }
+        .btn-green { background-color: #27ae60; } .btn-green:hover { background-color: #219150; }
+        .btn-gray { background-color: #95a5a6; }
+        .btn.active { background-color: #f39c12; border: 2px solid #e67e22; }
 
-        /* 按鈕樣式 */
-        .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; color: white; font-size: 14px; margin-right: 5px;}
-        .btn-blue { background-color: #007bff; }
-        .btn-green { background-color: #28a745; }
-        .btn-red { background-color: #dc3545; }
-        .btn-gray { background-color: #6c757d; }
-        .btn:hover { opacity: 0.9; }
-
-        /* 資料表格樣式 */
-        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        .data-table th, .data-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-        .data-table th { background-color: #f2f2f2; }
-        .data-table tr:hover { background-color: #f1f1f1; }
-
-        /* 分類過濾按鈕區 */
-        .filter-bar { margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-
-        /* 隱藏/顯示控制 */
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* ----- 明條列印樣式 (與之前相同) ----- */
+        /* --- 測驗通知單 (Slip) --- */
         .slip-container {
-            width: 100%; max-width: 800px; background: white;
-            padding: 10px 0; page-break-inside: avoid; margin-bottom: 20px; border-bottom: 1px dashed #ccc;
+            width: 19.8cm; margin: 0 auto 15px auto; background: white; padding: 2px 0;
+            border-bottom: 1px dashed #bbb; page-break-inside: avoid;
         }
-        .slip-title { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 5px; font-family: "標楷體"; }
-        table.slip-table { width: 100%; border-collapse: collapse; border: 1px solid black; text-align: center; font-family: "標楷體"; }
-        .slip-table th, .slip-table td { border: 1px solid black; padding: 5px; vertical-align: middle; font-size: 18px; }
-        .slip-table th { height: 40px; font-weight: normal; }
-        .slip-table td { height: 80px; }
-        .text-red { color: red; font-weight: bold; }
-        .text-left { text-align: left; padding-left: 15px; }
-        .checkbox-item { display: block; margin: 3px 0; text-align: left; margin-left: 10px; }
-        .square { display: inline-block; width: 14px; height: 14px; line-height: 14px; margin-right: 5px; }
+        .slip-header { text-align: center; font-size: 20px; font-weight: bold; font-family: "標楷體"; margin-bottom: 3px; }
+        table.slip-table { width: 100%; border-collapse: collapse; border: 2px solid black; font-family: "標楷體"; text-align: center; table-layout: fixed; }
+        .slip-table th, .slip-table td { border: 1px solid black; padding: 4px; font-size: 18px; vertical-align: middle; word-wrap: break-word; }
+        .slip-table th { height: 35px; background: #fff; font-weight: normal; font-size: 16px; }
+        .slip-table td { height: 75px; }
+        .text-red { color: red !important; font-weight: bold; font-family: "Microsoft JhengHei"; }
+        .text-left-content { text-align: left; padding-left: 10px !important; }
+        .text-center-content { text-align: center; } 
+        .square { display: inline-block; width: 14px; height: 14px; margin-right: 3px; vertical-align: middle; font-size: 16px; }
+        .items-cell div { white-space: nowrap; }
+        .items-note { font-size: 13px; margin: 0; display: block; white-space: nowrap; }
 
-        /* 列印模式 */
-        @media print {
-            .navbar, .settings-box, .btn-section, .filter-bar, #tab-data { display: none !important; }
-            .container { box-shadow: none; margin: 0; padding: 0; max-width: 100%; }
-            .tab-content { display: block; } /* 強制顯示內容 */
-            #tab-preview { display: block !important; } /* 只顯示預覽區 */
-            body { background: white; }
-            .slip-container { border-bottom: 1px dashed #999; margin-bottom: 0; padding: 20px 0; }
+        /* --- 通用表格 --- */
+        table.list-table { width: 100%; border-collapse: collapse; margin-top: 5px; font-size: 14px; color: #333; margin-bottom: 20px;}
+        table.list-table th { background-color: #f2f2f2; border: 1px solid #999; padding: 8px; font-weight: bold; white-space: nowrap; }
+        table.list-table td { border: 1px solid #999; padding: 6px; vertical-align: middle; text-align: center; }
+        .col-left { text-align: left; padding-left: 10px !important; }
+
+        /* --- 導師名單專用表格 --- */
+        table.teacher-table { width: 100%; border-collapse: collapse; font-size: 10pt; color: #000; margin-bottom: 0; }
+        table.teacher-table th { background-color: #e0e0e0; border: 1px solid #666; padding: 4px; text-align: center; font-weight: bold; }
+        table.teacher-table td { border: 1px solid #666; padding: 4px; text-align: center; vertical-align: middle; }
+        .info-cell { font-size: 9pt; color: #444; }
+        
+        .teacher-header { 
+            background-color: #333; color: white; padding: 8px 15px; margin-top: 0; 
+            border-radius: 0; text-align: center; font-weight: bold; font-size: 14pt; 
+            border: 1px solid #000; border-bottom: none; 
+            -webkit-print-color-adjust: exact;
+            display: flex; justify-content: space-between; align-items: center;
         }
+
+        .print-mode-selector { background-color: #fff8e1; border: 2px solid #ffe082; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 15px; }
+        .print-mode-selector label { margin: 0 15px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .print-mode-selector input { transform: scale(1.3); margin-right: 5px; }
+
+        /* 導師選單 */
+        .class-selector-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-top: 15px; }
+        .grade-group-card { border: 1px solid #ccc; border-radius: 5px; padding: 10px; background-color: #f9f9f9; }
+        .grade-group-header { font-weight: bold; border-bottom: 2px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .class-checkbox-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .class-checkbox-item { display: flex; align-items: center; background: #fff; border: 1px solid #ddd; padding: 4px 8px; border-radius: 4px; font-size: 14px; }
+
     </style>
 </head>
 <body>
 
     <div class="navbar">
-        <h1>測驗通知單系統</h1>
-        <div class="nav-tabs">
-            <button class="active" onclick="switchTab('data')">1. 資料管理與篩選</button>
-            <button onclick="switchTab('preview')">2. 列印預覽 (產生明條)</button>
+        <h2 style="margin:0; margin-right: 20px;">測驗系統 v18.0</h2>
+        <div class="nav-buttons">
+            <button class="btn btn-gray active" onclick="switchTab('data')">1. 資料匯入</button>
+            <button class="btn btn-gray" onclick="switchTab('slips')">2. 通知單</button>
+            <button class="btn btn-gray" onclick="switchTab('idlist')">3. 簽到表</button>
+            <button class="btn btn-gray" onclick="switchTab('stats')">4. 統計報表</button>
+            <button class="btn btn-gray" onclick="switchTab('teachers')">5. 導師留存名單</button>
         </div>
     </div>
 
     <div class="container">
-        <div class="settings-box">
-            <h3 style="margin-top:0">第一步：匯入與設定</h3>
-            <input type="file" id="uploadFile" accept=".csv, .xlsx, .xls" />
-            <span style="color: #666; font-size: 14px; margin-left: 10px;">(請上傳含有 年級、班級、姓名、科目 的 Excel)</span>
-        </div>
-
+        
         <div id="tab-data" class="tab-content active">
-            <div class="filter-bar">
-                <strong>檢視篩選：</strong>
-                <button class="btn btn-gray" onclick="renderTable('all')">顯示總表 (可刪除)</button>
-                <button class="btn btn-blue" onclick="renderTable('chi')">只看國語</button>
-                <button class="btn btn-blue" onclick="renderTable('math')">只看數學</button>
-                <button class="btn btn-blue" onclick="renderTable('eng')">只看英語</button>
-                
-                <button class="btn btn-green" style="float: right;" onclick="exportExcel()">匯出目前名單 (Excel)</button>
+            <div class="settings-box">
+                <h3>步驟一：匯入 Excel 檔案</h3>
+                <input type="file" id="uploadFile" accept=".csv, .xlsx, .xls" />
+                <p class="hint-text" style="color:#666; font-size:14px; margin-top:10px; line-height: 1.6;">
+                    Excel 建議包含欄位：<br>
+                    <b>目前年級、班級、座號、姓名、身分證統一編號、國語文測驗、數學測驗、英語測驗</b>
+                </p>
             </div>
-            
-            <div id="table-container">
-                <p style="text-align: center; color: #888; padding: 20px;">請先上傳檔案以檢視資料。</p>
-            </div>
+            <div id="data-preview-msg"></div>
         </div>
 
-        <div id="tab-preview" class="tab-content">
+        <div id="tab-slips" class="tab-content">
             <div class="settings-box">
-                <h3 style="margin-top:0">第二步：設定各年級考試資訊</h3>
+                <h3>步驟二：設定測驗資訊 (科目/時間/地點)</h3>
+                <p style="color:#666; font-size:13px; margin-top:-10px;">(系統會自動記憶您輸入的內容)</p>
+                <div class="config-row" style="background-color: #e8f4fd; border: 1px solid #b6e0fe; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+                    <label style="width: 80px;">通知單標題</label>
+                    <input type="text" id="slip-title-input" onchange="saveConfig()" value="教育部-新莊國小-學習扶助-成長測驗 (請協助貼施測當週聯絡簿)" style="width: 100%; font-weight: bold;">
+                </div>
                 <div id="grade-settings"></div>
-                <div style="margin-top: 15px; text-align: center;">
-                    <button class="btn btn-blue" onclick="generateSlips()">更新/產生明條</button>
-                    <button class="btn btn-green" onclick="window.print()">🖨️ 列印</button>
+            </div>
+
+            <div class="print-mode-selector">
+                <div style="margin-bottom:10px; color:#d35400;">🖨️ <b>選擇要產生的通知單科目：</b></div>
+                <label><input type="checkbox" id="p-chi" checked onchange="refreshSlips()"> 國語</label>
+                <label><input type="checkbox" id="p-math" onchange="refreshSlips()"> 數學</label>
+                <label><input type="checkbox" id="p-eng" onchange="refreshSlips()"> 英語</label>
+            </div>
+
+            <div style="text-align: center;">
+                <button class="btn btn-green" onclick="printArea('slips')">🖨️ 列印通知單</button>
+            </div>
+            <div id="print-section-slips"></div>
+        </div>
+
+        <div id="tab-idlist" class="tab-content">
+            <div class="settings-box">
+                <h3>步驟三：測驗簽到與身分證核對表</h3>
+                <div class="print-mode-selector">
+                    <span style="font-weight:bold; margin-right:10px;">請選擇列印模式：</span>
+                    <label><input type="radio" name="signMode" value="all" checked onchange="generateIDList()"> 總表(含所有科目)</label>
+                    <label><input type="radio" name="signMode" value="chi" onchange="generateIDList()"> 國語專用</label>
+                    <label><input type="radio" name="signMode" value="math" onchange="generateIDList()"> 數學專用</label>
+                    <label><input type="radio" name="signMode" value="eng" onchange="generateIDList()"> 英語專用</label>
+                </div>
+                <div style="text-align: center;">
+                    <button class="btn btn-green" onclick="printArea('list')">🖨️ 列印簽到表</button>
                 </div>
             </div>
-            <div id="slips-area"></div>
+            <div id="print-section-list"></div>
         </div>
+
+        <div id="tab-stats" class="tab-content">
+            <div class="settings-box" style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>步驟四：統計報表中心</h3>
+                <button class="btn btn-green" onclick="printArea('stats')">🖨️ 列印統計總表</button>
+            </div>
+            <div id="print-section-stats"></div>
+        </div>
+
+        <div id="tab-teachers" class="tab-content">
+            <div class="settings-box">
+                <h3>步驟五：導師留存名單 (含各科時間地點)</h3>
+                <p style="margin:5px 0;">請勾選要列印的班級 (列印時，每個班級會自動換頁)：</p>
+                <div style="margin:10px 0;" class="btn-group">
+                     <button class="btn btn-blue" onclick="toggleAllGrades(true)">全校全選</button>
+                     <button class="btn btn-gray" onclick="toggleAllGrades(false)">全部取消</button>
+                </div>
+                <div id="class-selector-container" class="class-selector-container"></div>
+                <div style="text-align: center; margin-top:20px; padding-top:10px; border-top:1px solid #eee;">
+                    <button class="btn btn-green" onclick="generateTeacherLists()">🔄 產生名單</button>
+                    <button class="btn btn-green" onclick="printArea('teachers')">🖨️ 列印 (分頁)</button>
+                    <button class="btn btn-blue" onclick="printArea('teachers-compact')">✂️ 列印 (不分頁/省紙)</button>
+                </div>
+            </div>
+            <div id="print-section-teachers"></div>
+        </div>
+
     </div>
 
 <script>
-    // 全域變數儲存資料
-    let globalStudents = []; 
+    let globalStudents = [];
 
-    // 初始化年級設定欄位
+    // --- 本地儲存 (Local Storage) 功能 ---
+    function saveConfig() {
+        const config = {
+            title: document.getElementById('slip-title-input').value,
+            grades: {}
+        };
+        for (let i = 1; i <= 6; i++) {
+            config.grades[i] = {
+                dateC: document.getElementById(`date-c-${i}`).value,
+                locC: document.getElementById(`loc-c-${i}`).value,
+                dateM: document.getElementById(`date-m-${i}`).value,
+                locM: document.getElementById(`loc-m-${i}`).value,
+                dateE: document.getElementById(`date-e-${i}`).value,
+                locE: document.getElementById(`loc-e-${i}`).value
+            };
+        }
+        localStorage.setItem('examSystemConfig_v14', JSON.stringify(config));
+    }
+
+    function loadConfig() {
+        const saved = localStorage.getItem('examSystemConfig_v14');
+        if (saved) {
+            const config = JSON.parse(saved);
+            if(config.title) document.getElementById('slip-title-input').value = config.title;
+            if(config.grades) {
+                for (let i = 1; i <= 6; i++) {
+                    if(config.grades[i]) {
+                        if(document.getElementById(`date-c-${i}`)) document.getElementById(`date-c-${i}`).value = config.grades[i].dateC;
+                        if(document.getElementById(`loc-c-${i}`)) document.getElementById(`loc-c-${i}`).value = config.grades[i].locC;
+                        if(document.getElementById(`date-m-${i}`)) document.getElementById(`date-m-${i}`).value = config.grades[i].dateM;
+                        if(document.getElementById(`loc-m-${i}`)) document.getElementById(`loc-m-${i}`).value = config.grades[i].locM;
+                        if(document.getElementById(`date-e-${i}`)) document.getElementById(`date-e-${i}`).value = config.grades[i].dateE;
+                        if(document.getElementById(`loc-e-${i}`)) document.getElementById(`loc-e-${i}`).value = config.grades[i].locE;
+                    }
+                }
+            }
+        }
+    }
+
+    // 初始化年級設定
     const gradeSettingsContainer = document.getElementById('grade-settings');
     for (let i = 1; i <= 6; i++) {
         const div = document.createElement('div');
         div.className = 'config-row';
+        let defaultTime = `12/${i}(一) 07:50~08:30`;
         div.innerHTML = `
             <label>${i} 年級</label>
-            <input type="text" id="loc-${i}" placeholder="測驗地點" value="3F-E 化教室" style="width: 150px;">
-            <input type="text" id="date-${i}" placeholder="日期" value="12/2(二) 早自修" style="width: 150px;">
-            <input type="text" id="time-${i}" placeholder="時間" value="7:50~8:30" style="width: 120px;">
+            <div style="flex:1; display:flex; flex-wrap:wrap;">
+                <div class="subject-group chi">
+                    <span class="time-label" style="color:#cc0000;">國語</span>
+                    <div class="time-row">
+                        <input type="text" id="date-c-${i}" class="input-time" placeholder="時間" value="${defaultTime}" onchange="saveConfig()">
+                        <input type="text" id="loc-c-${i}" class="input-loc" placeholder="地點" value="${i}F 教室" onchange="saveConfig()">
+                    </div>
+                </div>
+                <div class="subject-group math">
+                    <span class="time-label" style="color:#00008B;">數學</span>
+                    <div class="time-row">
+                        <input type="text" id="date-m-${i}" class="input-time" placeholder="時間" value="${defaultTime}" onchange="saveConfig()">
+                        <input type="text" id="loc-m-${i}" class="input-loc" placeholder="地點" value="${i}F 教室" onchange="saveConfig()">
+                    </div>
+                </div>
+                <div class="subject-group eng">
+                    <span class="time-label" style="color:#006400;">英語</span>
+                    <div class="time-row">
+                        <input type="text" id="date-e-${i}" class="input-time" placeholder="時間" value="${defaultTime}" onchange="saveConfig()">
+                        <input type="text" id="loc-e-${i}" class="input-loc" placeholder="地點" value="${i}F 教室" onchange="saveConfig()">
+                    </div>
+                </div>
+            </div>
         `;
         gradeSettingsContainer.appendChild(div);
     }
+    
+    loadConfig();
 
-    // 檔案上傳監聽
+    // 匯入 Excel
     document.getElementById('uploadFile').addEventListener('change', (e) => {
         const file = e.target.files[0];
         const reader = new FileReader();
@@ -176,187 +368,415 @@
             const worksheet = workbook.Sheets[workbook.SheetNames[0]];
             const rawData = XLSX.utils.sheet_to_json(worksheet);
             
-            // 資料正規化 (整理成統一格式)
+            // 資料對應 (v17.0 修正判斷邏輯)
             globalStudents = rawData.map((row, index) => {
+                // 輔助函式：檢查是否為 X
+                const checkExam = (val) => {
+                    if (!val) return false;
+                    const str = val.toString().trim().toUpperCase();
+                    // 只要包含 X 就視為要考 (相容全形Ｘ)
+                    return str.includes('X') || str.includes('Ｘ');
+                };
+
+                // 輔助函式：檢查是否有資料 (包含 X 或 O)
+                const checkCase = (val) => {
+                    if (!val) return false;
+                    const str = val.toString().trim();
+                    return str.length > 0;
+                };
+
+                const rawChi = row['國語文測驗'] || row['國語'];
+                const rawMath = row['數學測驗'] || row['數學'];
+                const rawEng = row['英語測驗'] || row['英語'];
+
                 return {
-                    id: index, // 給予唯一 ID 方便刪除
+                    id: index + 1,
                     grade: (row['目前年級'] || row['年級'] || '').toString().trim(),
                     cls: (row['班級'] || '').toString().trim(),
+                    seat: (row['座號'] || '').toString().trim(), 
                     name: (row['姓名'] || '').toString().trim(),
-                    // 判斷是否有值 (有值就代表要考)
-                    chi: (row['國語文測驗'] || row['國語'] || '').toString().trim(),
-                    math: (row['數學測驗'] || row['數學'] || '').toString().trim(),
-                    eng: (row['英語測驗'] || row['英語'] || '').toString().trim(),
-                    // 保留原始物件以便需要時查看其他欄位
-                    raw: row
+                    idNo: (row['身分證統一編號'] || row['身分證'] || row['身分證字號'] || '').toString().trim(),
+                    
+                    // 考試判定：只有 X 才算
+                    chi: checkExam(rawChi),
+                    math: checkExam(rawMath),
+                    eng: checkExam(rawEng),
+
+                    // 個案判定：有資料就算 (X 或 O)
+                    isCase: checkCase(rawChi) || checkCase(rawMath) || checkCase(rawEng)
                 };
             });
 
-            alert(`成功匯入 ${globalStudents.length} 筆資料`);
-            renderTable('all'); // 預設顯示總表
+            // 排序
+            globalStudents.sort((a, b) => {
+                if (a.grade !== b.grade) return parseInt(a.grade) - parseInt(b.grade);
+                if (a.cls !== b.cls) return parseInt(a.cls) - parseInt(b.cls);
+                return (parseInt(a.seat) || 0) - (parseInt(b.seat) || 0);
+            });
+
+            document.getElementById('data-preview-msg').innerHTML = 
+                `<p style="color:green; text-align:center;">✅ 成功匯入 ${globalStudents.length} 筆資料！</p>`;
+            
+            generateIDList();
+            generateStats();
+            initTeacherClassSelector();
+            refreshSlips();
+            switchTab('slips'); 
         };
         reader.readAsArrayBuffer(file);
     });
 
-    // 切換分頁
     function switchTab(tabName) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav-tabs button').forEach(el => el.classList.remove('active'));
-        
-        if (tabName === 'data') {
-            document.getElementById('tab-data').classList.add('active');
-            document.querySelector('.nav-tabs button:nth-child(1)').classList.add('active');
-        } else {
-            document.getElementById('tab-preview').classList.add('active');
-            document.querySelector('.nav-tabs button:nth-child(2)').classList.add('active');
-            generateSlips(); // 切換到預覽時自動產生
-        }
+        document.querySelectorAll('.nav-buttons button').forEach(el => el.classList.remove('active'));
+        const tabMap = { 'data': 0, 'slips': 1, 'idlist': 2, 'stats': 3, 'teachers': 4 };
+        document.getElementById('tab-' + tabName).classList.add('active');
+        document.querySelectorAll('.nav-buttons button')[tabMap[tabName]].classList.add('active');
+        if(tabName === 'slips') refreshSlips();
+        if(tabName === 'idlist') generateIDList();
+        if(tabName === 'stats') generateStats();
     }
 
-    // 渲染資料表格
-    function renderTable(filterType) {
-        const container = document.getElementById('table-container');
-        let filteredData = [];
-        let title = "";
+    // --- 功能 1：測驗通知單 (只印有X的) ---
+    function refreshSlips() {
+        const container = document.getElementById('print-section-slips');
+        container.innerHTML = '';
+        const currentTitle = document.getElementById('slip-title-input').value;
+        if (globalStudents.length === 0) return;
 
-        // 根據類型篩選
-        if (filterType === 'all') {
-            filteredData = globalStudents;
-            title = "總表 (全部學生)";
-        } else if (filterType === 'chi') {
-            filteredData = globalStudents.filter(s => s.chi.length > 0);
-            title = "國語文測驗名單";
-        } else if (filterType === 'math') {
-            filteredData = globalStudents.filter(s => s.math.length > 0);
-            title = "數學測驗名單";
-        } else if (filterType === 'eng') {
-            filteredData = globalStudents.filter(s => s.eng.length > 0);
-            title = "英語測驗名單";
-        }
+        const printTargets = [];
+        if (document.getElementById('p-chi').checked) printTargets.push('chi');
+        if (document.getElementById('p-math').checked) printTargets.push('math');
+        if (document.getElementById('p-eng').checked) printTargets.push('eng');
 
-        if (filteredData.length === 0) {
-            container.innerHTML = `<h4>${title}：目前沒有資料</h4>`;
-            return;
-        }
+        if (printTargets.length === 0) { container.innerHTML = '<p style="text-align:center;color:red;">請至少勾選一種科目</p>'; return; }
 
-        let html = `<h4>${title} (共 ${filteredData.length} 人)</h4>`;
-        html += `<table class="data-table"><thead><tr>
-            <th>年級</th><th>班級</th><th>姓名</th>
-            <th>國語</th><th>數學</th><th>英語</th>
-            ${filterType === 'all' ? '<th>操作</th>' : ''}
-        </tr></thead><tbody>`;
+        printTargets.forEach(subjectType => {
+            globalStudents.forEach(s => {
+                // 只有要考該科的人才印
+                let hasSubject = false;
+                if (subjectType === 'chi' && s.chi) hasSubject = true;
+                if (subjectType === 'math' && s.math) hasSubject = true;
+                if (subjectType === 'eng' && s.eng) hasSubject = true;
+                if (!hasSubject) return;
 
-        filteredData.forEach(s => {
-            html += `<tr>
-                <td>${s.grade}</td>
-                <td>${s.cls}</td>
-                <td>${s.name}</td>
-                <td>${s.chi ? '✅' : ''}</td>
-                <td>${s.math ? '✅' : ''}</td>
-                <td>${s.eng ? '✅' : ''}</td>
-                ${filterType === 'all' ? `<td><button class="btn btn-red" onclick="deleteStudent(${s.id})">刪除</button></td>` : ''}
-            </tr>`;
+                const tickChi = (subjectType === 'chi');
+                const tickMath = (subjectType === 'math');
+                const tickEng = (subjectType === 'eng');
+                const tickPencil = true; 
+                const tickHeadphone = (subjectType === 'eng');
+                
+                let dateTime = "";
+                let location = "";
+
+                if (subjectType === 'chi') {
+                    dateTime = document.getElementById(`date-c-${s.grade}`).value;
+                    location = document.getElementById(`loc-c-${s.grade}`).value;
+                } else if (subjectType === 'math') {
+                    dateTime = document.getElementById(`date-m-${s.grade}`).value;
+                    location = document.getElementById(`loc-m-${s.grade}`).value;
+                } else if (subjectType === 'eng') {
+                    dateTime = document.getElementById(`date-e-${s.grade}`).value;
+                    location = document.getElementById(`loc-e-${s.grade}`).value;
+                }
+
+                if(dateTime.includes(" ")) dateTime = dateTime.replace(" ", "<br>"); 
+
+                const html = `
+                    <div class="slip-container">
+                        <div class="slip-header">${currentTitle}</div>
+                        <table class="slip-table">
+                            <colgroup>
+                                <col style="width: 6%;">  
+                                <col style="width: 6%;">  
+                                <col style="width: 10%;"> 
+                                <col style="width: 18%;"> 
+                                <col style="width: 18%;"> 
+                                <col style="width: 12%;"> 
+                                <col style="width: 30%;"> 
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>年級</th><th>班級</th><th>姓名</th>
+                                    <th>施測地點</th><th>施測日期與時間</th>
+                                    <th>測驗科目</th><th>建議攜帶物品</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${s.grade}</td><td>${s.cls}</td><td>${s.name}</td>
+                                    <td class="text-red">${location}</td><td class="text-red" style="line-height:1.4">${dateTime}</td>
+                                    <td class="text-left-content">
+                                        <div><span class="square">${tickChi ? '■' : '□'}</span>國語</div>
+                                        <div><span class="square">${tickMath ? '■' : '□'}</span>數學</div>
+                                        <div><span class="square">${tickEng ? '■' : '□'}</span>英語</div>
+                                    </td>
+                                    <td class="text-center-content items-cell">
+                                        <div><span class="square">${tickPencil ? '■' : '□'}</span>鉛筆盒</div>
+                                        <div><span class="square">${tickHeadphone ? '■' : '□'}</span>英聽用耳機</div>
+                                        <span class="items-note">(如果有,比較衛生)</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>`;
+                container.insertAdjacentHTML('beforeend', html);
+            });
+        });
+    }
+
+    // --- 功能 2：身分證簽到表 (只列有X的) ---
+    function generateIDList() {
+        const container = document.getElementById('print-section-list');
+        if (globalStudents.length === 0) { container.innerHTML = '<p style="text-align:center;">請先匯入資料</p>'; return; }
+        const mode = document.querySelector('input[name="signMode"]:checked').value;
+        let titleSuffix = "";
+        let showChi = true, showMath = true, showEng = true;
+        if (mode === 'chi') { titleSuffix = "- 國語測驗專用"; showMath = false; showEng = false; }
+        else if (mode === 'math') { titleSuffix = "- 數學測驗專用"; showChi = false; showEng = false; }
+        else if (mode === 'eng') { titleSuffix = "- 英語測驗專用"; showChi = false; showMath = false; }
+        
+        // 過濾：只列出在當前模式下有考試(X)的學生
+        const studentsToShow = globalStudents.filter(s => {
+            if (mode === 'all') return s.chi || s.math || s.eng;
+            if (mode === 'chi') return s.chi;
+            if (mode === 'math') return s.math;
+            if (mode === 'eng') return s.eng;
         });
 
+        let html = `
+            <div style="text-align:center; margin-bottom:15px;">
+                <h2>學習扶助成長測驗 - 考生身分證對照表 ${titleSuffix}</h2>
+            </div>
+            <table class="list-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">序號</th><th style="width:50px;">年級</th><th style="width:50px;">班級</th><th style="width:50px;">座號</th>
+                        <th style="width:100px; text-align:left; padding-left:10px;">姓名</th>
+                        <th style="width:120px; text-align:left; padding-left:10px;">身分證統一編號</th>
+                        ${showChi ? '<th style="width:40px;">國語</th>' : ''}
+                        ${showMath ? '<th style="width:40px;">數學</th>' : ''}
+                        ${showEng ? '<th style="width:40px;">英語</th>' : ''}
+                        <th style="width:80px;">報到打勾</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+        studentsToShow.forEach((s, idx) => {
+            html += `<tr>
+                <td>${idx + 1}</td><td>${s.grade}</td><td>${s.cls}</td><td>${s.seat}</td>
+                <td class="col-left">${s.name}</td>
+                <td class="col-left" style="font-family:monospace; font-size:15px;">${s.idNo}</td>
+                ${showChi ? `<td>${s.chi ? '●' : ''}</td>` : ''}
+                ${showMath ? `<td>${s.math ? '●' : ''}</td>` : ''}
+                ${showEng ? `<td>${s.eng ? '●' : ''}</td>` : ''}
+                <td><span style="font-size:20px;">□</span></td>
+            </tr>`;
+        });
         html += `</tbody></table>`;
         container.innerHTML = html;
     }
 
-    // 刪除學生
-    function deleteStudent(id) {
-        if (!confirm("確定要將這位學生從名單中移除嗎？")) return;
+    // --- 功能 3：統計報表 (v17.0 修正統計邏輯) ---
+    function generateStats() {
+        const container = document.getElementById('print-section-stats');
+        if (globalStudents.length === 0) { container.innerHTML = '<p style="text-align:center;">請先匯入資料</p>'; return; }
+        const gradeStats = {};
+        const detailStats = {}; 
         
-        // 從 globalStudents 中移除
-        globalStudents = globalStudents.filter(s => s.id !== id);
-        
-        // 重新渲染表格
-        renderTable('all');
-    }
-
-    // 匯出 Excel
-    function exportExcel() {
-        if (globalStudents.length === 0) { alert("沒有資料可匯出"); return; }
-
-        // 將資料轉換回 Excel 格式
-        const exportData = globalStudents.map(s => ({
-            "年級": s.grade,
-            "班級": s.cls,
-            "姓名": s.name,
-            "國語文測驗": s.chi, // 保留原始標記 (例如 X)
-            "數學測驗": s.math,
-            "英語測驗": s.eng
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "最新名單");
-        XLSX.writeFile(wb, "整理後名單.xlsx");
-    }
-
-    // 產生明條 (列印用)
-    function generateSlips() {
-        const container = document.getElementById('slips-area');
-        container.innerHTML = '';
-
-        if (globalStudents.length === 0) {
-            container.innerHTML = '<p style="text-align:center">請先匯入資料。</p>';
-            return;
-        }
+        let totalChi = 0, totalMath = 0, totalEng = 0;
+        let totalStudents = 0; 
 
         globalStudents.forEach(s => {
-            // 取得該年級設定
-            let loc = "未設定";
-            let date = "";
-            let time = "";
-            const locInput = document.getElementById(`loc-${s.grade}`);
-            if (locInput) {
-                loc = locInput.value;
-                date = document.getElementById(`date-${s.grade}`).value;
-                time = document.getElementById(`time-${s.grade}`).value;
+            // 統計初始化
+            if (!gradeStats[s.grade]) gradeStats[s.grade] = { c:0, m:0, e:0, studentCount: 0 };
+            if (!detailStats[s.grade]) detailStats[s.grade] = {};
+            if (!detailStats[s.grade][s.cls]) detailStats[s.grade][s.cls] = { c:0, m:0, e:0 };
+
+            // 考試人數統計：只算有 X 的
+            if(s.chi) { gradeStats[s.grade].c++; detailStats[s.grade][s.cls].c++; }
+            if(s.math) { gradeStats[s.grade].m++; detailStats[s.grade][s.cls].m++; }
+            if(s.eng) { gradeStats[s.grade].e++; detailStats[s.grade][s.cls].e++; }
+            
+            // 個案學生統計：算 X + O (只要 isCase 為真)
+            if(s.isCase) {
+                gradeStats[s.grade].studentCount++;
             }
+        });
 
-            const isChinese = s.chi.length > 0;
-            const isMath = s.math.length > 0;
-            const isEnglish = s.eng.length > 0;
+        let html = `<h3>(1) 全校各年級應考人數總表</h3>
+                    <table class="list-table" style="width:650px; margin:0 auto;">
+                        <thead><tr><th>年級</th><th>個案學生數</th><th>國語人數</th><th>數學人數</th><th>英語人數</th></tr></thead><tbody>`;
+        const sortedGrades = Object.keys(gradeStats).sort((a,b) => parseInt(a)-parseInt(b));
+        sortedGrades.forEach(g => {
+            totalChi += gradeStats[g].c;
+            totalMath += gradeStats[g].m;
+            totalEng += gradeStats[g].e;
+            totalStudents += gradeStats[g].studentCount;
+            html += `<tr><td>${g} 年級</td><td class="stat-student-count">${gradeStats[g].studentCount}</td><td class="stat-chi">${gradeStats[g].c}</td><td class="stat-math">${gradeStats[g].m}</td><td class="stat-eng">${gradeStats[g].e}</td></tr>`;
+        });
+        html += `<tr class="stat-total-row"><td>全校總計</td><td class="stat-student-count">${totalStudents}</td><td class="stat-chi">${totalChi}</td><td class="stat-math">${totalMath}</td><td class="stat-eng">${totalEng}</td></tr>`;
+        html += `</tbody></table><br><hr><br>`;
+        
+        html += `<h3>(2) 各班級應考人數統計表 (依年級分類)</h3>`;
+        
+        sortedGrades.forEach(g => {
+            let subChi = 0, subMath = 0, subEng = 0;
+            html += `<h4>【${g} 年級】</h4>`;
+            html += `<table class="list-table">
+                        <thead><tr><th>班級</th><th>國語人數</th><th>數學人數</th><th>英語人數</th></tr></thead><tbody>`;
+            const classesInGrade = detailStats[g];
+            const sortedClasses = Object.keys(classesInGrade).sort((a,b) => parseInt(a) - parseInt(b));
+            sortedClasses.forEach(cls => {
+                const st = classesInGrade[cls];
+                // 只列出有人要考試的班級
+                if (st.c > 0 || st.m > 0 || st.e > 0) {
+                    subChi += st.c;
+                    subMath += st.m;
+                    subEng += st.e;
+                    html += `<tr><td>${cls} 班</td><td class="stat-chi">${st.c}</td><td class="stat-math">${st.m}</td><td class="stat-eng">${st.e}</td></tr>`;
+                }
+            });
+            html += `<tr class="stat-total-row"><td>${g}年級總計</td><td class="stat-chi">${subChi}</td><td class="stat-math">${subMath}</td><td class="stat-eng">${subEng}</td></tr>`;
+            html += `</tbody></table>`;
+        });
+        container.innerHTML = html;
+    }
 
-            const slipHTML = `
-                <div class="slip-container">
-                    <div class="slip-title">教育部-新莊國小-學習扶助-成長測驗 (請協助貼施測當週聯絡簿)</div>
-                    <table class="slip-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 8%;">年級</th>
-                                <th style="width: 8%;">班級</th>
-                                <th style="width: 15%;">姓名</th>
-                                <th style="width: 20%;">施測地點</th>
-                                <th style="width: 20%;">施測日期與時間</th>
-                                <th style="width: 15%;">測驗科目</th>
-                                <th>建議攜帶物品</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
+    // --- 功能 4：導師留存名單 (只列有X的) ---
+    function initTeacherClassSelector() {
+        const container = document.getElementById('class-selector-container');
+        container.innerHTML = '';
+        if (globalStudents.length === 0) return;
+        const gradeMap = {};
+        globalStudents.forEach(s => {
+            if (!gradeMap[s.grade]) gradeMap[s.grade] = new Set();
+            gradeMap[s.grade].add(s.cls);
+        });
+        const sortedGrades = Object.keys(gradeMap).sort((a,b) => parseInt(a)-parseInt(b));
+        sortedGrades.forEach(g => {
+            const card = document.createElement('div');
+            card.className = 'grade-group-card';
+            const header = document.createElement('div');
+            header.className = 'grade-group-header';
+            header.innerHTML = `<span>${g} 年級</span><button class="btn btn-blue" style="font-size:12px; padding:3px 8px;" onclick="toggleGradeClasses('${g}', true)">全選</button>`;
+            card.appendChild(header);
+            const cbContainer = document.createElement('div');
+            cbContainer.className = 'class-checkbox-grid';
+            const classes = Array.from(gradeMap[g]).sort((a,b) => parseInt(a)-parseInt(b));
+            classes.forEach(cls => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'class-checkbox-item';
+                wrapper.innerHTML = `<label style="width:auto; margin:0; cursor:pointer;"><input type="checkbox" class="cls-cb grade-${g}" value="${cls}" data-grade="${g}"> ${cls}班</label>`;
+                cbContainer.appendChild(wrapper);
+            });
+            card.appendChild(cbContainer);
+            container.appendChild(card);
+        });
+    }
+
+    function toggleGradeClasses(grade, checked) {
+        document.querySelectorAll(`.cls-cb.grade-${grade}`).forEach(cb => cb.checked = checked);
+    }
+    function toggleAllGrades(checked) {
+        document.querySelectorAll('.cls-cb').forEach(cb => cb.checked = checked);
+    }
+
+    function generateTeacherLists() {
+        const container = document.getElementById('print-section-teachers');
+        container.innerHTML = '';
+        const checkedBoxes = document.querySelectorAll('.cls-cb:checked');
+        if(checkedBoxes.length === 0) { container.innerHTML = '<p style="text-align:center; color:red;">請先勾選至少一個班級</p>'; return; }
+        
+        const selectedTargets = []; 
+        checkedBoxes.forEach(cb => {
+            selectedTargets.push({ grade: cb.dataset.grade, cls: cb.value });
+        });
+
+        selectedTargets.sort((a,b) => {
+            if(a.grade !== b.grade) return parseInt(a.grade) - parseInt(b.grade);
+            return parseInt(a.cls) - parseInt(b.cls);
+        });
+
+        let html = '';
+        selectedTargets.forEach(target => {
+            const cls = target.cls;
+            const grade = target.grade;
+            // 導師名單：只列出有任一科要考試(X)的學生
+            const classStudents = globalStudents.filter(s => s.cls === cls && s.grade === grade && (s.chi || s.math || s.eng));
+
+            if(classStudents.length > 0) {
+                let cCount = 0, mCount = 0, eCount = 0;
+                classStudents.forEach(s => {
+                    if(s.chi) cCount++;
+                    if(s.math) mCount++;
+                    if(s.eng) eCount++;
+                });
+
+                const dateC = document.getElementById(`date-c-${grade}`).value;
+                const locC = document.getElementById(`loc-c-${grade}`).value;
+                const dateM = document.getElementById(`date-m-${grade}`).value;
+                const locM = document.getElementById(`loc-m-${grade}`).value;
+                const dateE = document.getElementById(`date-e-${grade}`).value;
+                const locE = document.getElementById(`loc-e-${grade}`).value;
+
+                html += `<div class="teacher-block">`;
+                html += `<div class="teacher-header">
+                            <span>${grade}年 ${cls} 班 - 學習扶助測驗名單 (導師留存)</span>
+                            <span style="font-size:12pt;">國:${cCount}  數:${mCount}  英:${eCount}</span>
+                         </div>`;
+                html += `<table class="teacher-table">
+                            <thead><tr>
+                                <th style="width:4%;">年</th>
+                                <th style="width:4%;">班</th>
+                                <th style="width:4%;">號</th>
+                                <th style="width:8%;">姓名</th>
+                                <th style="width:4%;">國</th>
+                                <th style="width:4%;">數</th>
+                                <th style="width:4%;">英</th>
+                                <th style="width:14%;">國考時間</th><th style="width:8%;">國考地點</th>
+                                <th style="width:14%;">數考時間</th><th style="width:8%;">數考地點</th>
+                                <th style="width:14%;">英考時間</th><th style="width:8%;">英考地點</th>
+                            </tr></thead><tbody>`;
+                
+                classStudents.forEach(s => {
+                    // 只有該生考該科(X)，才顯示時間地點
+                    const chiTime = s.chi ? dateC : "";
+                    const chiLoc = s.chi ? locC : "";
+                    const mathTime = s.math ? dateM : "";
+                    const mathLoc = s.math ? locM : "";
+                    const engTime = s.eng ? dateE : "";
+                    const engLoc = s.eng ? locE : "";
+
+                    html += `<tr>
                                 <td>${s.grade}</td>
                                 <td>${s.cls}</td>
+                                <td>${s.seat}</td>
                                 <td>${s.name}</td>
-                                <td class="text-red">${loc}</td>
-                                <td class="text-red">${date}<br>${time}</td>
-                                <td class="text-left">
-                                    <div class="checkbox-item"><span class="square">${isChinese ? '■' : '□'}</span>國語</div>
-                                    <div class="checkbox-item"><span class="square">${isMath ? '■' : '□'}</span>數學</div>
-                                    <div class="checkbox-item"><span class="square">${isEnglish ? '■' : '□'}</span>英語</div>
-                                </td>
-                                <td class="text-left" style="font-size: 16px;">
-                                    <div class="checkbox-item"><span class="square">■</span>鉛筆盒</div>
-                                    <div class="checkbox-item"><span class="square">${isEnglish ? '■' : '□'}</span>英聽用耳機<br><span style="font-size:14px; margin-left:22px">(如果有,比較衛生)</span></div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            container.insertAdjacentHTML('beforeend', slipHTML);
+                                <td>${s.chi ? '●' : ''}</td>
+                                <td>${s.math ? '●' : ''}</td>
+                                <td>${s.eng ? '●' : ''}</td>
+                                <td class="info-cell">${chiTime}</td><td class="info-cell">${chiLoc}</td>
+                                <td class="info-cell">${mathTime}</td><td class="info-cell">${mathLoc}</td>
+                                <td class="info-cell">${engTime}</td><td class="info-cell">${engLoc}</td>
+                             </tr>`;
+                });
+                html += `</tbody></table>`;
+                html += `</div>`;
+                html += `<div class="page-break"></div>`; 
+            }
         });
+        container.innerHTML = html;
+    }
+
+    function printArea(mode) {
+        // v18.0 更新：根據模式切換 CSS class
+        if (mode === 'teachers-compact') {
+            document.body.className = 'print-teachers-compact';
+        } else {
+            document.body.className = 'print-' + mode;
+        }
+        window.print();
+        setTimeout(() => { document.body.className = ''; }, 1000);
     }
 </script>
 
