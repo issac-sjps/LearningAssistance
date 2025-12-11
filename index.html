@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學習扶助成長測驗 - 通知單產生器</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: "標楷體", "KaiTi", "Microsoft JhengHei", serif; margin: 20px; background-color: #f4f4f4; }
+        
+        /* 設定區域樣式 (列印時會隱藏) */
+        #control-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            max-width: 900px;
+            margin: 0 auto 20px auto;
+        }
+        h2 { margin-top: 0; color: #333; font-family: sans-serif; }
+        .config-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .config-row label { font-weight: bold; width: 60px; }
+        input[type="text"], input[type="time"] { padding: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .btn { padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background-color: #0056b3; }
+        .btn-print { background-color: #28a745; margin-left: 10px; }
+        .file-upload { margin: 15px 0; padding: 15px; border: 2px dashed #ccc; text-align: center; }
+
+        /* 明條預覽區域 */
+        #preview-area {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        /* ----- 明條本身的樣式 (模仿圖片) ----- */
+        .slip-container {
+            width: 100%;
+            max-width: 800px; /* A4 寬度約 210mm，稍微縮小一點避免超出 */
+            background: white;
+            padding: 10px 0;
+            page-break-inside: avoid; /* 避免列印時被切斷 */
+            margin-bottom: 20px;
+        }
+
+        .slip-title {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        table.slip-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid black;
+            text-align: center;
+        }
+
+        .slip-table th, .slip-table td {
+            border: 1px solid black;
+            padding: 5px;
+            vertical-align: middle;
+            font-size: 18px;
+        }
+
+        .slip-table th { background-color: #fff; height: 40px; font-weight: normal; }
+        .slip-table td { height: 80px; } /* 增加內容高度 */
+
+        /* 特殊文字顏色 */
+        .text-red { color: red; font-weight: bold; }
+        .text-left { text-align: left; padding-left: 15px; }
+        
+        /* 核取方塊模擬 */
+        .checkbox-item { display: block; margin: 3px 0; text-align: left; margin-left: 10px; }
+        .square { display: inline-block; width: 14px; height: 14px; line-height: 14px; margin-right: 5px; }
+
+        /* ----- 列印專用樣式 ----- */
+        @media print {
+            body { background-color: white; margin: 0; }
+            #control-panel { display: none; }
+            .slip-container { margin-bottom: 0; border-bottom: 1px dashed #ccc; padding: 20px 0; }
+            /* 每頁放幾個可以調整，這裡設為盡量不切斷 */
+            .slip-container { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="control-panel">
+    <h2>1. 設定考試資訊 (依年級)</h2>
+    <div id="grade-settings">
+        </div>
+
+    <h2>2. 上傳學生名冊 (Excel/CSV)</h2>
+    <div class="file-upload">
+        <input type="file" id="uploadFile" accept=".csv, .xlsx, .xls" />
+        <p style="color: #666; font-size: 12px; margin-top:5px;">
+            請確保 Excel 有標題列：包含「目前年級」、「班級」、「姓名」、「國語文測驗」、「數學測驗」、「英語測驗」
+        </p>
+    </div>
+
+    <div style="text-align: center;">
+        <button class="btn" onclick="processData()">產生明條</button>
+        <button class="btn btn-print" onclick="window.print()">列印 / 存成 PDF</button>
+    </div>
+</div>
+
+<div id="preview-area"></div>
+
+<script>
+    // 初始化設定介面 (1~6年級)
+    const gradeSettingsContainer = document.getElementById('grade-settings');
+    for (let i = 1; i <= 6; i++) {
+        const div = document.createElement('div');
+        div.className = 'config-row';
+        div.innerHTML = `
+            <label>${i} 年級</label>
+            <input type="text" id="loc-${i}" placeholder="測驗地點 (例: 3F-E化教室)" value="3F-E 化教室" style="width: 150px;">
+            <input type="text" id="date-${i}" placeholder="日期 (例: 12/2(二))" value="12/2(二) 早自修" style="width: 150px;">
+            <input type="text" id="time-${i}" placeholder="時間 (例: 7:50~8:30)" value="7:50~8:30" style="width: 120px;">
+        `;
+        gradeSettingsContainer.appendChild(div);
+    }
+
+    let excelData = [];
+
+    // 監聽檔案上傳
+    document.getElementById('uploadFile').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            // 轉換為 JSON，第一列為標題
+            excelData = XLSX.utils.sheet_to_json(worksheet);
+            alert(`已讀取 ${excelData.length} 筆資料，請按「產生明條」`);
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function processData() {
+        if (excelData.length === 0) {
+            alert("請先上傳 Excel 檔案！");
+            return;
+        }
+
+        const container = document.getElementById('preview-area');
+        container.innerHTML = ''; // 清空舊資料
+
+        excelData.forEach(student => {
+            // 讀取學生資料 (請確保 Excel 標題名稱對應這裡)
+            // 容錯處理：去除空白
+            const grade = String(student['目前年級'] || student['年級'] || '').trim();
+            const cls = student['班級'] || '';
+            const name = student['姓名'] || '';
+            
+            // 判斷科目 (若欄位有值，視為要考)
+            const isChinese = (student['國語文測驗'] || student['國語'] || '').toString().trim().length > 0;
+            const isMath = (student['數學測驗'] || student['數學'] || '').toString().trim().length > 0;
+            const isEnglish = (student['英語測驗'] || student['英語'] || '').toString().trim().length > 0;
+
+            // 取得該年級的設定
+            let loc = "未設定";
+            let date = "";
+            let time = "";
+            
+            const locInput = document.getElementById(`loc-${grade}`);
+            if (locInput) {
+                loc = locInput.value;
+                date = document.getElementById(`date-${grade}`).value;
+                time = document.getElementById(`time-${grade}`).value;
+            }
+
+            // 產生 HTML
+            const slipHTML = `
+                <div class="slip-container">
+                    <div class="slip-title">教育部-新莊國小-學習扶助-成長測驗 (請協助貼施測當週聯絡簿)</div>
+                    <table class="slip-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 8%;">年級</th>
+                                <th style="width: 8%;">班級</th>
+                                <th style="width: 15%;">姓名</th>
+                                <th style="width: 20%;">施測地點</th>
+                                <th style="width: 20%;">施測日期與時間</th>
+                                <th style="width: 15%;">測驗科目</th>
+                                <th>建議攜帶物品</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>${grade}</td>
+                                <td>${cls}</td>
+                                <td>${name}</td>
+                                <td class="text-red">${loc}</td>
+                                <td class="text-red">
+                                    ${date}<br>${time}
+                                </td>
+                                <td class="text-left">
+                                    <div class="checkbox-item"><span class="square">${isChinese ? '■' : '□'}</span>國語</div>
+                                    <div class="checkbox-item"><span class="square">${isMath ? '■' : '□'}</span>數學</div>
+                                    <div class="checkbox-item"><span class="square">${isEnglish ? '■' : '□'}</span>英語</div>
+                                </td>
+                                <td class="text-left" style="font-size: 16px;">
+                                    <div class="checkbox-item"><span class="square">■</span>鉛筆盒</div>
+                                    <div class="checkbox-item"><span class="square">${isEnglish ? '■' : '□'}</span>英聽用耳機<br><span style="font-size:14px; margin-left:22px">(如果有,比較衛生)</span></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', slipHTML);
+        });
+    }
+</script>
+
+</body>
+</html>
