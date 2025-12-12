@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助測驗系統 v50.0 (新增資料檢視功能)</title>
+    <title>學習扶助測驗系統 v50.1 (時間表空白隱藏邏輯)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* --- 全域設定 --- */
@@ -246,7 +246,6 @@
         table.student-status-table td { border: 1px solid #000; padding: 4px; }
         .status-header { font-weight: bold; background-color: #f9f9f9; }
         
-        /* v50.0 資料檢視樣式 */
         #data-preview-area table th { position: sticky; top: 0; background-color: #eee; z-index: 1; }
     </style>
 </head>
@@ -254,7 +253,7 @@
 
     <div class="navbar">
         <div class="nav-left">
-            <h2 style="margin:0;">測驗系統 v50.0</h2>
+            <h2 style="margin:0;">測驗系統 v50.1</h2>
             <button class="active btn-import" onclick="switchTab('data')">1. 資料匯入</button>
         </div>
         
@@ -663,11 +662,11 @@
                 dE: document.getElementById(`d-e-${i}`).value, lE: document.getElementById(`l-e-${i}`).value,
             };
         }
-        localStorage.setItem('exam_v49_3_config', JSON.stringify(config));
+        localStorage.setItem('exam_v50_1_config', JSON.stringify(config));
     }
 
     function loadConfig() {
-        const saved = localStorage.getItem('exam_v49_3_config');
+        const saved = localStorage.getItem('exam_v50_1_config');
         if(saved) {
             const c = JSON.parse(saved);
             if(c.slipTitle) document.getElementById('slip-title').value = c.slipTitle;
@@ -826,22 +825,33 @@
         window.print();
     }
 
+    // v50.1: 加入空值判斷，避免顯示「地點：」空字樣
     function generateScheduleTable() {
         let rows = '';
         for(let i=1; i<=6; i++) {
-            const dC = document.getElementById(`d-c-${i}`).value;
-            const lC = document.getElementById(`l-c-${i}`).value;
-            const dM = document.getElementById(`d-m-${i}`).value;
-            const lM = document.getElementById(`l-m-${i}`).value;
-            const dE = document.getElementById(`d-e-${i}`).value;
-            const lE = document.getElementById(`l-e-${i}`).value;
+            const dC = document.getElementById(`d-c-${i}`).value.trim();
+            const lC = document.getElementById(`l-c-${i}`).value.trim();
+            const dM = document.getElementById(`d-m-${i}`).value.trim();
+            const lM = document.getElementById(`l-m-${i}`).value.trim();
+            const dE = document.getElementById(`d-e-${i}`).value.trim();
+            const lE = document.getElementById(`l-e-${i}`).value.trim();
             
+            // v50.1 Logic: If empty, don't show anything.
+            const contentC = (dC ? `<span class="sch-time">${dC}</span>` : '') + 
+                             (lC ? `<span class="sch-loc">地點：${lC}</span>` : '');
+                             
+            const contentM = (dM ? `<span class="sch-time">${dM}</span>` : '') + 
+                             (lM ? `<span class="sch-loc">地點：${lM}</span>` : '');
+                             
+            const contentE = (dE ? `<span class="sch-time">${dE}</span>` : '') + 
+                             (lE ? `<span class="sch-loc">地點：${lE}</span>` : '');
+
             rows += `
             <tr>
                 <td style="font-weight:bold;">${i}年級</td>
-                <td><span class="sch-time">${dC}</span><span class="sch-loc">地點：${lC}</span></td>
-                <td><span class="sch-time">${dM}</span><span class="sch-loc">地點：${lM}</span></td>
-                <td><span class="sch-time">${dE}</span><span class="sch-loc">地點：${lE}</span></td>
+                <td>${contentC}</td>
+                <td>${contentM}</td>
+                <td>${contentE}</td>
             </tr>`;
         }
         return `
@@ -860,6 +870,7 @@
     }
 
     // v46.2: 使用 replace(/\n/g, '<br>') 來緊縮行距
+    // v49.2: 修正為 "114學年度"
     function renderParentNotices() {
         if(globalStudents.length===0) return alert('無資料');
         
