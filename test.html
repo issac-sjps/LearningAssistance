@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學習扶助編班系統 (V13.0 靈活管理版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+    <style>
+        @media print {
+            .no-print { display: none !important; }
+            .print-area { display: block !important; }
+            body { background: white; }
+            .page-break { page-break-after: always; }
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .print-area { display: none; }
+        
+        .notice-box {
+            border: 2px solid black; padding: 20px; margin-bottom: 20px;
+            font-family: "BiauKai", "DFKai-SB", serif; font-size: 16px; line-height: 1.5; max-width: 800px; margin: 0 auto;
+        }
+        .notice-header { text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 15px; }
+        .cut-line { border-top: 1px dashed black; margin: 20px 0; text-align: center; position: relative; }
+        .cut-line span { background: white; padding: 0 10px; position: relative; top: -12px; font-size: 14px;}
+
+        /* 學生卡片 */
+        .student-card {
+            background: white; border-left: 4px solid #ddd; padding: 8px; margin: 5px;
+            border-radius: 4px; cursor: grab; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            user-select: none; font-size: 14px; transition: all 0.2s;
+        }
+        .student-card:active { cursor: grabbing; }
+        .student-meta { font-size: 12px; color: #666; display: flex; justify-content: space-between;}
+        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        
+        /* 班級卡片拖曳把手 */
+        .class-drag-handle { cursor: move; color: #9ca3af; padding: 0 5px; }
+        .class-drag-handle:hover { color: #4b5563; }
+
+        .quick-assign-select { font-size: 12px; margin-top: 4px; padding: 2px; width: 100%; border: 1px solid #ccc; border-radius: 3px; background-color: #f9fafb; }
+        .settings-table th { background-color: #f3f4f6; padding: 10px; border: 1px solid #e5e7eb; text-align: left; white-space: nowrap; }
+        .settings-table td { padding: 4px; border: 1px solid #e5e7eb; }
+        .settings-table input, .settings-table select { width: 100%; padding: 6px; border: 1px solid #d1d5db; border-radius: 4px; }
+        
+        /* 學生列表項目 */
+        .scan-item:hover { background-color: #f3f4f6; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 font-sans flex flex-col">
+
+    <div class="no-print max-w-7xl mx-auto w-full bg-white shadow-md rounded-lg p-3 mb-4 sticky top-0 z-50">
+        <div class="flex justify-between items-center flex-wrap gap-3">
+            <h1 class="text-xl font-bold text-gray-800 flex items-center shrink-0">
+                <span class="bg-slate-700 text-white text-xs px-2 py-1 rounded mr-2">V13.0</span>
+                學習扶助編班系統
+                <span id="save-status" class="ml-2 text-xs font-normal text-gray-400"></span>
+            </h1>
+            <div class="space-x-1 text-sm shrink-0 flex overflow-x-auto">
+                <button onclick="switchTab('scan')" class="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition shadow-sm whitespace-nowrap">1. 學生登錄</button>
+                <button onclick="switchTab('class-settings')" class="px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600 transition shadow-sm whitespace-nowrap">2. 班級設定</button>
+                <button onclick="switchTab('arrange')" class="px-3 py-1.5 bg-green-500 text-white rounded hover:bg-green-600 transition shadow-sm whitespace-nowrap">3. 拖曳編班</button>
+                <button onclick="switchTab('print')" class="px-3 py-1.5 bg-purple-500 text-white rounded hover:bg-purple-600 transition shadow-sm whitespace-nowrap">4. 列印與匯出</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="scan-section" class="no-print w-full max-w-5xl mx-auto bg-white p-6 rounded-lg shadow show-section">
+        <div class="flex gap-6 flex-col md:flex-row">
+            <div class="md:w-1/3 border-2 border-blue-200 rounded-lg p-5 bg-blue-50">
+                <h3 class="font-bold text-blue-800 mb-4 text-lg">📝 手動新增學生回條</h3>
+                <div class="space-y-3">
+                    <div class="flex gap-2">
+                        <input type="number" id="mGrade" placeholder="年級" class="border p-2 rounded w-1/2 focus:outline-blue-500">
+                        <input type="number" id="mClass" placeholder="班級" class="border p-2 rounded w-1/2 focus:outline-blue-500">
+                    </div>
+                    <input type="text" id="mName" placeholder="學生姓名" class="border p-2 rounded w-full focus:outline-blue-500">
+                    <div class="bg-white p-3 rounded border">
+                        <p class="text-sm text-gray-500 mb-2">勾選參加班級 (可多選)：</p>
+                        <div class="flex flex-col gap-2">
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded"><input type="checkbox" name="mSub" value="國語" class="w-5 h-5 text-blue-600 mr-2 accent-red-500"><span class="font-bold text-red-600">國語班</span></label>
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded"><input type="checkbox" name="mSub" value="數學" class="w-5 h-5 text-blue-600 mr-2 accent-blue-500"><span class="font-bold text-blue-600">數學班</span></label>
+                            <label class="flex items-center cursor-pointer hover:bg-gray-50 p-1 rounded"><input type="checkbox" name="mSub" value="英語" class="w-5 h-5 text-blue-600 mr-2 accent-green-500"><span class="font-bold text-green-600">英語班</span></label>
+                        </div>
+                    </div>
+                    <button onclick="manualAdd()" class="bg-blue-600 text-white font-bold w-full py-3 rounded shadow hover:bg-blue-700 transition">+ 加入清單</button>
+                    <hr class="border-blue-200 my-2">
+                    <button onclick="mockScanNewForm()" class="bg-gray-400 text-white text-xs w-full py-2 rounded hover:bg-gray-500">⚡ 載入測試範例</button>
+                </div>
+            </div>
+            <div class="md:w-2/3">
+                <div class="flex justify-between items-center mb-2">
+                    <h3 class="font-bold text-gray-700">已登錄名單 (點兩下可編輯)</h3>
+                    <span id="count-badge" class="bg-gray-200 text-xs px-2 py-1 rounded">0 人</span>
+                </div>
+                <div id="scanned-list" class="h-[450px] overflow-y-auto border p-2 rounded bg-gray-50 space-y-2">
+                    <p class="text-gray-400 text-center mt-20">請在左側輸入回條資料</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="class-settings-section" class="no-print w-full max-w-7xl mx-auto bg-white p-6 rounded-lg shadow hidden flex-col">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">班級詳細資料設定</h2>
+                <p class="text-sm text-gray-500">設定班級與教室資訊。</p>
+            </div>
+            <button onclick="addNewClassRow()" class="bg-orange-500 text-white px-4 py-2 rounded shadow hover:bg-orange-600">+ 新增班級</button>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full border-collapse settings-table text-sm">
+                <thead>
+                    <tr>
+                        <th class="w-16">班別</th>
+                        <th class="w-16">年級</th>
+                        <th class="w-24">科目</th>
+                        <th class="w-24">教師姓名</th>
+                        <th class="w-20">分機</th>
+                        <th>教室代號</th>
+                        <th>樓-間</th>
+                        <th>教室名稱</th>
+                        <th class="w-16 text-center">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="class-settings-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="arrange-section" class="no-print w-full hidden flex-1 overflow-hidden" style="height: 80vh;">
+        <div class="w-64 flex-shrink-0 flex flex-col h-full bg-white border-r border-gray-300 shadow-md z-10">
+            <div class="bg-gray-700 text-white p-2 text-center font-bold text-lg shadow relative">待分發名單</div>
+            <div class="bg-gray-100 p-2 flex gap-1 justify-center border-b border-gray-300">
+                <button onclick="sortPool('grade')" class="bg-white border text-xs px-2 py-1 rounded hover:bg-gray-200 flex-1">🔽 年級排序</button>
+                <button onclick="sortPool('subject')" class="bg-white border text-xs px-2 py-1 rounded hover:bg-gray-200 flex-1">🔽 科目排序</button>
+            </div>
+            <div id="unassigned-pool" class="flex-1 p-2 bg-gray-100 overflow-y-auto"></div>
+        </div>
+        <div class="flex-1 flex flex-col h-full bg-gray-50">
+            <div class="flex justify-between items-center p-3 bg-white border-b shadow-sm sticky top-0 z-10">
+                <div class="flex items-center gap-4">
+                    <h2 class="text-lg font-bold text-gray-700">編班作業區</h2>
+                    <div class="flex items-center gap-2 text-xs bg-gray-100 px-3 py-1 rounded-full border">
+                        <span class="w-2 h-2 rounded-full bg-red-500"></span>國語
+                        <span class="w-2 h-2 rounded-full bg-blue-500 ml-2"></span>數學
+                        <span class="w-2 h-2 rounded-full bg-green-500 ml-2"></span>英語
+                    </div>
+                </div>
+                <div class="text-sm text-gray-500">💡 拖曳卡片左上角 <span class="font-bold text-lg">✥</span> 可互換班級順序 (名稱固定)</div>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                <div id="classes-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-10"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-section" class="no-print max-w-6xl mx-auto bg-white p-6 rounded-lg shadow hidden">
+        <h2 class="text-xl font-bold mb-4 border-b pb-2">列印與匯出</h2>
+        
+        <div class="mb-6 bg-slate-100 p-4 rounded-lg border-2 border-slate-300">
+            <h3 class="font-bold text-slate-800 text-lg mb-2 flex items-center">
+                <span class="mr-2">💾</span> 系統資料轉移 (換電腦/移交專用)
+            </h3>
+            <div class="flex gap-4">
+                <button onclick="exportSystemBackup()" class="flex-1 bg-slate-600 text-white font-bold py-3 rounded shadow hover:bg-slate-700 transition flex justify-center items-center">
+                    <span class="mr-2">⬇️</span> 匯出 系統完整備份檔 (.json)
+                </button>
+                <div class="flex-1 relative">
+                    <input type="file" id="systemRestoreInput" accept=".json" class="hidden" onchange="importSystemBackup(this)">
+                    <button onclick="document.getElementById('systemRestoreInput').click()" class="w-full h-full bg-white border-2 border-slate-400 text-slate-700 font-bold py-3 rounded shadow hover:bg-slate-50 transition flex justify-center items-center">
+                        <span class="mr-2">⬆️</span> 還原 系統備份檔
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 bg-purple-50 p-5 rounded border border-purple-200">
+                <h3 class="font-bold text-purple-800 mb-3 text-lg">📄 通知單內容設定</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="col-span-2"><label class="block text-sm font-bold text-gray-700">通知單標題</label><input type="text" id="setting-title" value="新莊國小 114 學年度上學期學習扶助上課通知單" class="w-full border p-2 rounded" onchange="saveData()"></div>
+                    <div><label class="block text-sm font-bold text-gray-700">上課日期</label><input type="text" id="setting-date" value="9/22(一)~12/29(一)" class="w-full border p-2 rounded" onchange="saveData()"></div>
+                    <div><label class="block text-sm font-bold text-gray-700">上課時間</label><input type="text" id="setting-time" value="每週一、週四 16:00-17:30" class="w-full border p-2 rounded" onchange="saveData()"></div>
+                    <div><label class="block text-sm font-bold text-gray-700">回條繳回期限</label><input type="text" id="setting-deadline" value="9/22(一)" class="w-full border p-2 rounded" onchange="saveData()"></div>
+                    <div><label class="block text-sm font-bold text-gray-700">分機預設前綴</label><input type="text" disabled value="3411373#" class="w-full border p-2 rounded bg-gray-100 text-gray-500"></div>
+                    <div class="col-span-2"><label class="block text-sm font-bold text-gray-700">備註</label><textarea id="setting-note" rows="3" class="w-full border p-2 rounded" onchange="saveData()">1. 如需請假時，請務必於 16:00 後，上課教師已經到該班教室上課才能直接接聽家長您的電話。
+2. 如果想要提前告知，請撥打 3411373#112 由註冊組協助轉知上課教師。</textarea></div>
+                    <div class="col-span-2"><label class="block text-sm font-bold text-gray-700">致家長信</label><textarea id="setting-footer" rows="2" class="w-full border p-2 rounded" onchange="saveData()">各位家長您好：
+很歡迎家長您讓學生報名本次學習扶助課程，如有任何疑問，再麻煩打電話到教務處註冊組詢問，謝謝您。</textarea></div>
+                </div>
+            </div>
+            
+            <div class="lg:col-span-1 space-y-3">
+                <div class="text-xs text-gray-500 font-bold uppercase tracking-wider mb-1">報表匯出</div>
+                <div class="border p-3 rounded hover:bg-green-50 cursor-pointer transition bg-white shadow-sm flex items-center" onclick="exportExcel()">
+                    <span class="text-2xl mr-3">📊</span><div><h3 class="font-bold text-green-700 text-sm">下載 學生編班名單</h3></div>
+                </div>
+                <div class="border p-3 rounded hover:bg-blue-50 cursor-pointer transition bg-white shadow-sm flex items-center" onclick="exportClassSettingsExcel()">
+                    <span class="text-2xl mr-3">📋</span><div><h3 class="font-bold text-blue-700 text-sm">下載 班級開課總表</h3></div>
+                </div>
+                <div class="border p-3 rounded hover:bg-pink-50 cursor-pointer transition bg-white shadow-sm flex items-center" onclick="exportRollCallExcel()">
+                    <span class="text-2xl mr-3">📝</span><div><h3 class="font-bold text-pink-700 text-sm">下載 各班點名單 (分頁)</h3></div>
+                </div>
+                <div class="border p-3 rounded hover:bg-purple-100 cursor-pointer transition bg-white shadow-sm flex items-center ring-2 ring-purple-500" onclick="preparePrint()">
+                    <span class="text-2xl mr-3">🖨️</span><div><h3 class="font-bold text-purple-700 text-sm">列印開課通知單</h3></div>
+                </div>
+                <div class="border border-dashed border-gray-300 p-3 rounded hover:bg-gray-50 cursor-pointer transition flex items-center text-gray-500" onclick="document.getElementById('importFile').click()">
+                    <span class="text-xl mr-3">📂</span><div><h3 class="font-bold text-sm">僅匯入學生名單 (Excel)</h3></div>
+                    <input type="file" id="importFile" accept=".xlsx, .xls" class="hidden" onchange="importExcel(this)">
+                </div>
+                <div class="mt-4 pt-4 border-t">
+                    <button onclick="resetSystem()" class="w-full text-center bg-red-50 text-red-600 border border-red-200 p-2 rounded hover:bg-red-100 text-xs font-bold">
+                        ⚠️ 重置系統 (清空所有資料)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="print-layout" class="print-area"></div>
+
+    <script>
+        // === 全域變數 ===
+        let students = []; 
+        let classes = [];
+        
+        // 預設資料 (擴充至 L 班，老師匿名化)
+        const defaultClasses = [
+            { id: 'A', name: 'A班', grade: '3', subject: '國語', teacher: '老師一', code: 'A302', floor: '3F-E化教室1', roomName: '3F-E化教室1', extension: '115' },
+            { id: 'B', name: 'B班', grade: '4', subject: '國語', teacher: '老師二', code: 'A204', floor: '至善樓2F-1', roomName: '203', extension: '221' },
+            { id: 'C', name: 'C班', grade: '2', subject: '數學', teacher: '老師三', code: 'A205', floor: '至善樓2F-2', roomName: '204', extension: '222' },
+            { id: 'D', name: 'D班', grade: '3', subject: '數學', teacher: '老師四', code: 'A206', floor: '至善樓2F-3', roomName: '205', extension: '223' },
+            { id: 'E', name: 'E班', grade: '5', subject: '數學', teacher: '老師五', code: 'A207', floor: '至善樓2F-4', roomName: '206', extension: '224' },
+            { id: 'F', name: 'F班', grade: '5', subject: '數學', teacher: '老師六', code: 'A208', floor: '至善樓2F-5', roomName: '401', extension: '225' },
+            { id: 'G', name: 'G班', grade: '6', subject: '數學', teacher: '老師七', code: 'A209', floor: '至善樓2F-6', roomName: '402', extension: '226' },
+            { id: 'H', name: 'H班', grade: '4', subject: '英語', teacher: '老師八', code: 'B305', floor: '至美樓3F-5', roomName: '505', extension: '335' },
+            { id: 'I', name: 'I班', grade: '4', subject: '英語', teacher: '老師九', code: 'A505', floor: '至善樓5F-3', roomName: '5F-E化教室3', extension: '253' },
+            { id: 'K', name: 'K班', grade: '6', subject: '英語', teacher: '老師十', code: 'B401', floor: '至美樓5F-1', roomName: '603', extension: '341' },
+            { id: 'L', name: 'L班', grade: '', subject: '國語', teacher: '老師十一', code: '', floor: '', roomName: '', extension: '' }
+        ];
+
+        const defaultSubjects = ['國語', '數學', '英語'];
+        const subjectColors = { '國語': 'bg-red-500', '數學': 'bg-blue-500', '英語': 'bg-green-500', '英文': 'bg-green-500' };
+        const subjectTextColors = { '國語': 'text-red-600', '數學': 'text-blue-600', '英語': 'text-green-600', '英文': 'text-green-600' };
+        const subjectBorderColors = { '國語': 'border-red-400', '數學': 'border-blue-400', '英語': 'border-green-400', '英文': 'border-green-400' };
+
+        window.onload = function() {
+            loadData();
+            renderScanList();
+            renderClassSettings();
+            loadSettingsToUI();
+        }
+
+        function loadData() {
+            const savedStudents = localStorage.getItem('classSys_students');
+            const savedClasses = localStorage.getItem('classSys_classes');
+            students = savedStudents ? JSON.parse(savedStudents) : [];
+            classes = savedClasses ? JSON.parse(savedClasses) : JSON.parse(JSON.stringify(defaultClasses));
+        }
+
+        function saveData() {
+            localStorage.setItem('classSys_students', JSON.stringify(students));
+            localStorage.setItem('classSys_classes', JSON.stringify(classes));
+            const settings = {
+                title: document.getElementById('setting-title').value,
+                date: document.getElementById('setting-date').value,
+                time: document.getElementById('setting-time').value,
+                deadline: document.getElementById('setting-deadline').value,
+                note: document.getElementById('setting-note').value,
+                footer: document.getElementById('setting-footer').value
+            };
+            localStorage.setItem('classSys_settings', JSON.stringify(settings));
+            const status = document.getElementById('save-status');
+            status.innerText = '(已自動存檔)';
+            setTimeout(() => status.innerText = '', 2000);
+        }
+
+        function loadSettingsToUI() {
+            const savedSettings = localStorage.getItem('classSys_settings');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                document.getElementById('setting-title').value = settings.title || '';
+                document.getElementById('setting-date').value = settings.date || '';
+                document.getElementById('setting-time').value = settings.time || '';
+                document.getElementById('setting-deadline').value = settings.deadline || '';
+                document.getElementById('setting-note').value = settings.note || '';
+                document.getElementById('setting-footer').value = settings.footer || '';
+            }
+        }
+
+        // === 1. 資料登錄 (含刪除與編輯) ===
+        function manualAdd() {
+            const grade = document.getElementById('mGrade').value;
+            const cls = document.getElementById('mClass').value;
+            const name = document.getElementById('mName').value;
+            const checkboxes = document.querySelectorAll('input[name="mSub"]:checked');
+            let selectedSubjects = [];
+            checkboxes.forEach((cb) => selectedSubjects.push(cb.value));
+            
+            if(!name || !grade || !cls || selectedSubjects.length === 0) {
+                alert("請填寫完整資訊並勾選班級");
+                return;
+            }
+
+            students.push({ id: Date.now(), name, orgGrade: grade, orgClass: cls, subjects: selectedSubjects });
+            document.getElementById('mName').value = '';
+            document.querySelectorAll('input[name="mSub"]').forEach(el => el.checked = false);
+            renderScanList();
+            saveData(); 
+        }
+
+        function mockScanNewForm() {
+            const newStudents = [
+                { id: Date.now() + 1, name: '吳星澄', orgGrade: '2', orgClass: '1', subjects: ['數學'] },
+                { id: Date.now() + 2, name: '林小豪', orgGrade: '4', orgClass: '1', subjects: ['國語', '數學'] },
+                { id: Date.now() + 3, name: '張雅婷', orgGrade: '3', orgClass: '2', subjects: ['英語'] }
+            ];
+            students = [...students, ...newStudents];
+            renderScanList();
+            saveData(); 
+        }
+
+        function deleteStudent(id) {
+            if(!confirm('確定刪除這位學生嗎？')) return;
+            students = students.filter(s => s.id !== id);
+            renderScanList();
+            saveData();
+        }
+
+        function editStudent(id) {
+            const student = students.find(s => s.id === id);
+            if (!student) return;
+            
+            const newName = prompt("修改學生姓名:", student.name);
+            if(newName === null) return;
+            const newGrade = prompt("修改年級:", student.orgGrade);
+            if(newGrade === null) return;
+            const newClass = prompt("修改原班級:", student.orgClass);
+            if(newClass === null) return;
+
+            student.name = newName;
+            student.orgGrade = newGrade;
+            student.orgClass = newClass;
+            
+            renderScanList();
+            saveData();
+        }
+
+        function renderScanList() {
+            const container = document.getElementById('scanned-list');
+            document.getElementById('count-badge').innerText = `${students.length} 人`;
+            container.innerHTML = students.length === 0 ? '<p class="text-gray-400 text-center mt-20">請在左側輸入回條資料</p>' : 
+            [...students].reverse().map(s => `
+                <div class="scan-item flex justify-between items-center bg-white p-3 mb-1 border rounded shadow-sm cursor-pointer" ondblclick="editStudent(${s.id})" title="點兩下可編輯">
+                    <div class="flex items-center">
+                        <span class="bg-gray-200 text-gray-700 font-bold px-2 py-1 rounded text-xs mr-3">${s.orgGrade}年${s.orgClass}班</span>
+                        <span class="font-bold text-gray-800">${s.name}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="flex gap-1">
+                            ${s.subjects.map(sub => `<span class="text-xs text-white px-2 py-1 rounded ${subjectColors[sub] || 'bg-gray-400'}">${sub}</span>`).join('')}
+                        </div>
+                        <button onclick="deleteStudent(${s.id})" class="text-red-400 hover:text-red-600 font-bold px-2">×</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // === 2. 班級設定邏輯 ===
+        function renderClassSettings() {
+            const tbody = document.getElementById('class-settings-tbody');
+            tbody.innerHTML = classes.map((c, index) => {
+                const textColor = subjectTextColors[c.subject] || '';
+                return `
+                <tr>
+                    <td><input type="text" value="${c.name}" onchange="updateClassByIndex(${index}, 'name', this.value)" placeholder="A班"></td>
+                    <td><input type="number" value="${c.grade}" onchange="updateClassByIndex(${index}, 'grade', this.value)" placeholder="3"></td>
+                    <td>
+                        <select onchange="updateClassByIndex(${index}, 'subject', this.value)" class="font-bold ${textColor}">
+                            <option value="國語" ${c.subject === '國語' ? 'selected' : ''} class="text-red-600 font-bold">國語</option>
+                            <option value="數學" ${c.subject === '數學' ? 'selected' : ''} class="text-blue-600 font-bold">數學</option>
+                            <option value="英語" ${c.subject === '英語' ? 'selected' : ''} class="text-green-600 font-bold">英語</option>
+                        </select>
+                    </td>
+                    <td><input type="text" value="${c.teacher}" onchange="updateClassByIndex(${index}, 'teacher', this.value)"></td>
+                    <td><input type="text" value="${c.extension}" onchange="updateClassByIndex(${index}, 'extension', this.value)"></td>
+                    <td><input type="text" value="${c.code}" onchange="updateClassByIndex(${index}, 'code', this.value)" placeholder="A302"></td>
+                    <td><input type="text" value="${c.floor}" onchange="updateClassByIndex(${index}, 'floor', this.value)" placeholder="3F-E化"></td>
+                    <td><input type="text" value="${c.roomName}" onchange="updateClassByIndex(${index}, 'roomName', this.value)" placeholder="教室名"></td>
+                    <td class="text-center">
+                        <button onclick="deleteClassByIndex(${index})" class="text-red-500 hover:text-red-700 font-bold">刪除</button>
+                    </td>
+                </tr>
+            `}).join('');
+        }
+
+        function updateClassByIndex(index, field, value) {
+            classes[index][field] = value;
+            saveData();
+            if(field === 'subject') renderClassSettings();
+        }
+
+        function addNewClassRow() {
+            const nextCode = String.fromCharCode(65 + classes.length); 
+            classes.push({ id: Date.now().toString(), name: nextCode + '班', grade: '', subject: '國語', teacher: '', code: '', floor: '', roomName: '', extension: '' });
+            renderClassSettings();
+            saveData(); 
+        }
+
+        function deleteClassByIndex(index) {
+            if(!confirm("確定刪除此班級？")) return;
+            const classId = classes[index].id;
+            students.forEach(s => { if(s.classId === classId) s.classId = null; });
+            classes.splice(index, 1);
+            renderClassSettings();
+            saveData(); 
+        }
+
+        // === 3. 拖曳編班 (含班級順序互換邏輯) ===
+        function toggleSubject(classId) {
+            const cls = classes.find(c => c.id === classId);
+            if(!cls) return;
+            let idx = defaultSubjects.indexOf(cls.subject);
+            if(idx === -1) idx = 0;
+            const nextIdx = (idx + 1) % defaultSubjects.length;
+            cls.subject = defaultSubjects[nextIdx];
+            renderDragBoard(); 
+            saveData(); 
+        }
+
+        function updateClassGradeDirect(classId, value) {
+            const cls = classes.find(c => c.id === classId);
+            if(!cls) return;
+            cls.grade = value;
+            saveData(); 
+        }
+
+        function renderDragBoard() {
+            const pool = document.getElementById('unassigned-pool');
+            pool.innerHTML = '';
+            const classOptions = `<option value="">請選擇班級...</option>` + 
+                classes.map(c => `<option value="${c.id}">${c.name} (${c.grade}年-${c.subject})</option>`).join('');
+
+            students.forEach(s => { 
+                if(!s.classId) createStudentCard(s, pool, true, classOptions);
+            });
+            if(!pool.sortable) pool.sortable = new Sortable(pool, { group: 'shared', animation: 150, sort: false, onAdd: (evt) => updateStudentClass(evt.item.dataset.id, null) });
+
+            const classContainer = document.getElementById('classes-container');
+            classContainer.innerHTML = '';
+            
+            classes.forEach(cls => {
+                const col = document.createElement('div');
+                col.className = "flex flex-col bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden h-[400px]";
+                // Set data-id to the Class ID for Sorting
+                col.dataset.id = cls.id;
+                
+                const subColor = subjectColors[cls.subject] || 'bg-gray-400';
+                const subTextColor = subjectTextColors[cls.subject] || 'text-gray-600';
+
+                col.innerHTML = `
+                    <div class="p-3 border-b bg-gray-50 flex-shrink-0">
+                        <div class="flex justify-between items-center mb-1">
+                            <div class="flex items-center">
+                                <span class="class-drag-handle text-xl mr-1" title="按住拖曳可互換班級順序">✥</span>
+                                <span class="text-xl font-bold text-gray-800 mr-1">${cls.name}</span>
+                                <div class="flex items-center bg-gray-100 rounded px-1 border border-gray-300">
+                                    <input type="number" value="${cls.grade}" 
+                                        onchange="updateClassGradeDirect('${cls.id}', this.value)" 
+                                        class="w-6 bg-transparent text-center font-bold text-sm focus:outline-none p-0" placeholder="?">
+                                    <span class="text-xs text-gray-500 font-bold ml-0.5">年級</span>
+                                </div>
+                            </div>
+                            <div class="cursor-pointer flex items-center gap-1 px-2 py-1 rounded-full border ${subTextColor} border-current bg-white hover:bg-gray-50 transition select-none"
+                                 onclick="toggleSubject('${cls.id}')" title="點擊切換科目">
+                                <span class="w-2.5 h-2.5 rounded-full ${subColor}"></span>
+                                <span class="text-xs font-bold">${cls.subject}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="class-${cls.id}" class="flex-1 p-2 overflow-y-auto bg-white relative" data-class-id="${cls.id}"></div>
+                    <div class="p-2 border-t bg-gray-50 text-center text-xs font-bold text-gray-500 flex-shrink-0">
+                        <span id="count-${cls.id}">0</span> 人
+                    </div>
+                `;
+                classContainer.appendChild(col);
+                const classBody = col.querySelector(`#class-${cls.id}`);
+                students.filter(s => s.classId === cls.id).forEach(s => createStudentCard(s, classBody));
+                col.querySelector(`#count-${cls.id}`).innerText = `${students.filter(s => s.classId === cls.id).length}`;
+
+                new Sortable(classBody, {
+                    group: 'shared', animation: 150,
+                    onAdd: function (evt) { updateStudentClass(evt.item.dataset.id, this.el.dataset.classId); },
+                    onRemove: function() { setTimeout(() => updateClassCountDisplay(cls.id), 50); }
+                });
+            });
+
+            // Initialize Class Sorting
+            new Sortable(classContainer, {
+                handle: '.class-drag-handle',
+                animation: 150,
+                onEnd: function (evt) {
+                    reorderClasses(evt.oldIndex, evt.newIndex);
+                }
+            });
+        }
+
+        // 核心邏輯：重新排序班級，但保持名稱 (A, B, C...) 固定
+        function reorderClasses(oldIndex, newIndex) {
+            if (oldIndex === newIndex) return;
+
+            // 1. 在陣列中移動物件
+            const movedClass = classes.splice(oldIndex, 1)[0];
+            classes.splice(newIndex, 0, movedClass);
+
+            // 2. 建立舊 ID 到新 ID 的映射表
+            // 目標：原本的 index 0 是 A 班，index 1 是 B 班...
+            // 移動後，index 0 的物件變成了原本的 G 班，但我們希望它現在叫 A 班，且 ID 也是 A
+            // 我們需要更新所有學生的 classId 指向
+            
+            // 先備份舊的 ID 順序
+            // 這裡採取策略：不改變 ID，只改變 Name？不，這樣邏輯會亂
+            // 策略：交換班級的所有「內容屬性」，但保留 ID 和 Name 不動
+            
+            // 重新載入，因為 Sortable 已經動了 DOM，我們需要重新渲染以確保 ID 正確
+            // 其實更簡單的做法：
+            // 1. 根據 DOM 順序重組 classes 陣列 (已經做了)
+            // 2. 重新分配 name (A班, B班...) 給陣列中的物件
+            // 3. 但 ID 必須跟著內容走，否則學生會跟丟
+            // 4. 所以：ID 不變 (例如 'G' 還是 'G')，但 Name 變成 'A班'
+            
+            classes.forEach((cls, index) => {
+                const newCode = String.fromCharCode(65 + index); // A, B, C...
+                cls.name = `${newCode}班`;
+            });
+
+            // 存檔並重繪
+            saveData();
+            renderDragBoard(); // 這一步會把 'A班' 的標題渲染到新的第一個物件(原本的G)上
+            renderClassSettings(); // 同步更新設定頁面
+        }
+
+        function sortPool(criteria) {
+            if (criteria === 'grade') {
+                students.sort((a, b) => (parseInt(a.orgGrade || 0) - parseInt(b.orgGrade || 0)) || (parseInt(a.orgClass || 0) - parseInt(b.orgClass || 0)));
+            } else if (criteria === 'subject') {
+                const w = { '國語': 1, '數學': 2, '英語': 3 };
+                students.sort((a, b) => (w[a.subjects[0]] || 9) - (w[b.subjects[0]] || 9));
+            }
+            renderDragBoard();
+        }
+
+        function createStudentCard(student, container, showSelect = false, optionsHtml = '') {
+            const div = document.createElement('div');
+            const mainSubject = student.subjects[0] || '其他';
+            div.className = `student-card ${subjectBorderColors[mainSubject] || 'border-gray-300'}`;
+            div.dataset.id = student.id;
+            let dots = student.subjects.map(sub => `<span class="dot ${subjectColors[sub] || 'bg-gray-400'}" title="${sub}"></span>`).join('');
+            let selectHtml = showSelect ? `<select class="quick-assign-select" onchange="updateStudentClass(${student.id}, this.value)">${optionsHtml}</select>` : '';
+
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-1">
+                    <span class="font-bold text-gray-800">${student.name}</span>
+                    <div class="flex pt-1">${dots}</div>
+                </div>
+                <div class="student-meta"><span>${student.orgGrade}年${student.orgClass}班</span></div>
+                ${selectHtml}
+            `;
+            container.appendChild(div);
+        }
+
+        function updateStudentClass(sid, cid) {
+            const s = students.find(x => x.id == sid);
+            if(s) s.classId = cid;
+            classes.forEach(c => updateClassCountDisplay(c.id));
+            renderDragBoard(); 
+            updatePreview();
+            saveData();
+        }
+        function updateClassCountDisplay(classId) {
+            const count = students.filter(s => s.classId === classId).length;
+            const el = document.getElementById(`count-${classId}`);
+            if(el) el.innerText = `${count}`;
+        }
+
+        function updatePreview() {
+            const preview = document.getElementById('data-preview');
+            const summary = classes.map(c => {
+                const count = students.filter(s => s.classId === c.id).length;
+                return `[${c.name}] (${c.subject}) ${c.teacher} : ${count}人`;
+            }).join('\n');
+            preview.innerText = summary || '尚無班級數據';
+        }
+
+        function toChineseNum(num) {
+            const map = {'1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六', '7': '七', '8': '八', '9': '九'};
+            return map[num] || num;
+        }
+
+        function exportClassSettingsExcel() {
+            const data = classes.map(c => {
+                const classCode = c.name.replace('班', ''); 
+                const gradeChi = toChineseNum(c.grade);
+                const fullCode = `${classCode}-${gradeChi}-${c.subject}`;
+                return { "班別": classCode, "年級": c.grade, "科目": c.subject, "代號": fullCode, "教師姓名": c.teacher, "教室": c.code, "樓-間": c.floor, "電話": c.extension, "教室名稱": c.roomName };
+            });
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "班級教師總表");
+            XLSX.writeFile(wb, "班級開課總表.xlsx");
+        }
+
+        function exportExcel() {
+            const data = students.map(s => {
+                const cls = classes.find(c => c.id === s.classId) || {};
+                return { "原年級": s.orgGrade, "原班級": s.orgClass, "學生姓名": s.name, "報名意願": s.subjects.join(','), "分發班級": cls.name || '未分發', "年級": cls.grade || '', "科目": cls.subject || '', "授課教師": cls.teacher || '', "分機": cls.extension || '', "教室名稱": cls.roomName || '', "教室代號": cls.code || '', "樓層": cls.floor || '' };
+            });
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "編班結果");
+            XLSX.writeFile(wb, "學習扶助編班名單.xlsx");
+        }
+
+        function exportRollCallExcel() {
+            const wb = XLSX.utils.book_new();
+            let hasData = false;
+            classes.forEach(cls => {
+                const classStudents = students.filter(s => s.classId === cls.id);
+                if (classStudents.length > 0) {
+                    hasData = true;
+                    classStudents.sort((a, b) => (parseInt(a.orgGrade || 0) - parseInt(b.orgGrade || 0)) || (parseInt(a.orgClass || 0) - parseInt(b.orgClass || 0)));
+                    const sheetData = classStudents.map((s, i) => ({ "座號": i + 1, "原班級": `${s.orgGrade}年${s.orgClass}班`, "學生姓名": s.name, "科目": s.subjects.join('/'), "第1週": "", "第2週": "", "第3週": "", "第4週": "", "第5週": "", "第6週": "", "第7週": "", "第8週": "", "備註": "" }));
+                    const ws = XLSX.utils.json_to_sheet(sheetData);
+                    XLSX.utils.book_append_sheet(wb, ws, `${cls.name}`);
+                }
+            });
+            if (!hasData) { alert("目前沒有已分發到班級的學生"); return; }
+            XLSX.writeFile(wb, "各班學生點名單.xlsx");
+        }
+
+        function importExcel(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                if (jsonData.length === 0) { alert("檔案似乎是空的"); return; }
+                if(!confirm(`即將匯入 ${jsonData.length} 筆資料，這將會清除目前的學生名單並覆蓋。確定嗎？`)) { input.value = ''; return; }
+                
+                students = [];
+                jsonData.forEach((row, index) => {
+                    const name = row['學生姓名'] || row['姓名'];
+                    const grade = row['原年級'];
+                    const cls = row['原班級'];
+                    const subjectsStr = row['報名意願'] || row['報名科目'] || '';
+                    const assignedClassName = row['分發班級'];
+                    let subArr = [];
+                    if(subjectsStr) subArr = subjectsStr.split(/[,，、/]/).map(s => s.trim()).filter(s => s);
+                    let classId = null;
+                    if(assignedClassName && assignedClassName !== '未分發') {
+                        const matchedClass = classes.find(c => c.name === assignedClassName || assignedClassName.includes(c.name));
+                        if(matchedClass) classId = matchedClass.id;
+                    }
+                    if(name) {
+                        students.push({ id: Date.now() + index, name: name, orgGrade: grade || '', orgClass: cls || '', subjects: subArr, classId: classId });
+                    }
+                });
+                alert(`成功匯入 ${students.length} 筆學生資料！`);
+                input.value = ''; 
+                renderScanList();
+                renderDragBoard();
+                updatePreview();
+                saveData(); 
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function exportSystemBackup() {
+            const settings = {
+                title: document.getElementById('setting-title').value,
+                date: document.getElementById('setting-date').value,
+                time: document.getElementById('setting-time').value,
+                deadline: document.getElementById('setting-deadline').value,
+                note: document.getElementById('setting-note').value,
+                footer: document.getElementById('setting-footer').value
+            };
+            const backupData = { version: "13.0", timestamp: new Date().toISOString(), students, classes, settings };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", `編班系統完整備份_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importSystemBackup(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if(!confirm("⚠️ 警告：還原備份將會「覆蓋」目前這台電腦上的所有資料！確定要繼續嗎？")) { input.value = ''; return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const backupData = JSON.parse(e.target.result);
+                    students = backupData.students;
+                    classes = backupData.classes;
+                    localStorage.setItem('classSys_students', JSON.stringify(students));
+                    localStorage.setItem('classSys_classes', JSON.stringify(classes));
+                    if (backupData.settings) localStorage.setItem('classSys_settings', JSON.stringify(backupData.settings));
+                    alert("✅ 系統資料還原成功！頁面將重新整理...");
+                    location.reload();
+                } catch (err) { alert("❌ 還原失敗：" + err.message); }
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function resetSystem() {
+            if (confirm("確定要清除所有資料嗎？\n這將會刪除所有學生名單、班級設定與通知單內容，且無法復原！")) {
+                localStorage.removeItem('classSys_students');
+                localStorage.removeItem('classSys_classes');
+                localStorage.removeItem('classSys_settings');
+                location.reload(); 
+            }
+        }
+
+        function preparePrint() {
+            const container = document.getElementById('print-layout');
+            container.innerHTML = ''; 
+            const assignedStudents = students.filter(s => s.classId);
+            const settings = {
+                title: document.getElementById('setting-title').value,
+                date: document.getElementById('setting-date').value,
+                time: document.getElementById('setting-time').value,
+                deadline: document.getElementById('setting-deadline').value,
+                note: document.getElementById('setting-note').value.replace(/\n/g, '<br>'),
+                footer: document.getElementById('setting-footer').value.replace(/\n/g, '<p>')
+            };
+
+            if(assignedStudents.length === 0) { alert("目前沒有學生被分配到班級，無法列印通知單。"); return; }
+
+            assignedStudents.forEach((s) => {
+                const cls = classes.find(c => c.id === s.classId);
+                const extStr = cls.extension ? `3411373#${cls.extension}` : '(未設定)';
+                const fullClassName = `${cls.name} (${cls.grade}年級 ${cls.subject})`;
+                let roomDisplay = cls.roomName || '';
+                if (cls.code) roomDisplay += ` (${cls.code})`;
+                if (cls.floor) roomDisplay += ` - ${cls.floor}`;
+                const html = generateNoticeHTML(s, cls, settings, extStr, fullClassName, roomDisplay);
+                const page = document.createElement('div');
+                page.className = 'page-break'; 
+                page.innerHTML = html;
+                container.appendChild(page);
+            });
+            window.print();
+        }
+
+        function generateNoticeHTML(student, cls, settings, extStr, fullClassName, roomDisplay) {
+            return `
+            <div class="notice-box">
+                <div class="notice-header">${settings.title}</div>
+                <table style="width:100%; border-collapse: collapse; margin-bottom: 10px; font-size: 18px;">
+                    <tr><td style="padding: 5px;">班級：<strong>${student.orgGrade}年 ${student.orgClass}班</strong></td><td style="padding: 5px; text-align:right;">學生姓名：<strong>${student.name}</strong></td></tr>
+                </table>
+                <div style="border: 1px solid black; padding: 15px; margin-bottom: 15px;">
+                    <p>上課班級：<strong>${fullClassName}</strong></p>
+                    <p>上課日期：${settings.date}</p>
+                    <p>上課時間：<strong>${settings.time}</strong></p>
+                    <p>上課教師：${cls.teacher} 老師</p>
+                    <p>上課教室：${roomDisplay}</p>
+                    <p>教室分機：${extStr}</p>
+                    <br><p>備註：</p><div style="padding-left: 20px;">${settings.note}</div>
+                </div>
+                <div class="mb-4">${settings.footer}</div>
+                <div class="cut-line"><span>請沿線剪下繳交給任課老師方便協助聯絡---上方資料家長自行留存</span></div>
+                <div style="border: 2px solid black; padding: 10px; text-align: center; margin: 20px 0;"><h3 style="margin:0;">回 條 ${settings.deadline} 交予授課學扶教師</h3></div>
+                <div style="text-align: center; margin-bottom: 10px; font-size: 18px;"><span>${student.orgGrade}年${student.orgClass}班 ${student.name}</span></div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span>上課班級：${fullClassName}</span><span>上課教師：${cls.teacher}</span></div>
+                <div style="text-align: center; font-weight: bold; margin-bottom: 15px;">※學習扶助課後接送者(請務必填寫並繳交，以利確認學生安全)</div>
+                <div style="line-height: 2.2; font-size: 16px;">
+                    <div>□ 家人，稱謂(　　　　)，連絡電話(　　　　　　　　)</div>
+                    <div>□ 校外安親班_名稱(　　　　)，連絡電話(　　　　　　　　)</div>
+                    <div>□ 校內安親班老師電話或教室分機(　　　　　　　　)</div>
+                    <div>□ 其他，請說明(　　　　　　　　)</div>
+                </div>
+                <div style="margin-top: 30px; text-align: right; font-size: 16px;">家長簽名 ______________________</div>
+            </div>`;
+        }
+
+        // === UI 切換 ===
+        function switchTab(tab) {
+            document.querySelectorAll('.show-section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.show-section').forEach(el => el.classList.remove('show-section'));
+            document.getElementById('scan-section').classList.add('hidden');
+            document.getElementById('class-settings-section').classList.add('hidden');
+            document.getElementById('class-settings-section').classList.remove('flex');
+            document.getElementById('arrange-section').classList.add('hidden');
+            document.getElementById('arrange-section').classList.remove('flex');
+            document.getElementById('print-section').classList.add('hidden');
+            
+            if(tab === 'scan') document.getElementById('scan-section').classList.remove('hidden');
+            if(tab === 'class-settings') {
+                document.getElementById('class-settings-section').classList.remove('hidden');
+                document.getElementById('class-settings-section').classList.add('flex');
+                renderClassSettings();
+            }
+            if(tab === 'arrange') {
+                document.getElementById('arrange-section').classList.remove('hidden');
+                document.getElementById('arrange-section').classList.add('flex');
+                renderDragBoard(); 
+            }
+            if(tab === 'print') {
+                document.getElementById('print-section').classList.remove('hidden');
+                updatePreview();
+            }
+        }
+    </script>
+</body>
+</html>
