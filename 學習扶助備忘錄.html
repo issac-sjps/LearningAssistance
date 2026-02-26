@@ -85,7 +85,7 @@
             cursor: pointer;
             font-weight: bold;
             font-size: 0.9rem;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, background-color 0.3s;
         }
         .btn:hover { opacity: 0.8; }
         .btn-edit { background-color: #4eb6e1; color: white; }
@@ -98,6 +98,7 @@
             text-align: center;
             border-radius: 8px;
             overflow: hidden;
+            table-layout: fixed;
         }
         th {
             background-color: var(--table-header);
@@ -115,11 +116,37 @@
         .status-complete { background-color: var(--row-complete); }
         
         /* Inputs & Elements */
+        .col-title {
+            text-align: left; /* 強制靠左，解決跑版問題 */
+            padding-left: 15px;
+            padding-right: 15px;
+        }
         .item-title {
-            text-align: left;
             font-weight: bold;
             font-size: 1.05rem;
-            margin-bottom: 5px;
+            margin-bottom: 6px;
+            color: #222;
+        }
+        .title-edit-input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px;
+            font-weight: bold;
+            font-size: 1.05rem;
+            border: 2px solid #4eb6e1;
+            border-radius: 4px;
+            margin-bottom: 6px;
+        }
+        .note-input {
+            width: 100%; /* 填滿欄位寬度 */
+            box-sizing: border-box;
+            text-align: left !important;
+            border: 1px dashed #aaa !important;
+            background: rgba(255, 255, 255, 0.6) !important;
+            font-size: 0.85rem !important;
+            color: #555;
+            padding: 6px 8px !important;
+            border-radius: 4px;
         }
         input[type="text"] {
             padding: 8px;
@@ -127,25 +154,14 @@
             border-radius: 4px;
             text-align: center;
             font-size: 0.9rem;
-            width: 120px;
+            width: 90%;
+            box-sizing: border-box;
             background: rgba(255,255,255,0.8);
         }
         input[type="text"]:focus {
             outline: none;
             border-color: #4eb6e1;
             background: #fff;
-        }
-        .note-input {
-            width: 90%;
-            text-align: left !important;
-            border: 1px dashed #aaa !important;
-            background: transparent !important;
-            font-size: 0.85rem !important;
-            color: #666;
-            padding: 4px 8px !important;
-        }
-        .doc-input {
-            width: 110px;
         }
         
         /* Badges & Text Colors */
@@ -183,17 +199,17 @@
     </div>
 
     <div class="toolbar">
-        <button class="btn btn-edit">✏️ 進入編輯模式</button>
+        <button class="btn btn-edit" id="edit-btn" onclick="toggleEditMode()">✏️ 進入編輯模式</button>
     </div>
 
     <table>
         <thead>
             <tr>
                 <th width="5%">項次</th>
-                <th width="25%">申請項目與備註</th>
-                <th width="15%">相關編號/文號</th>
+                <th width="28%">申請項目與備註</th>
+                <th width="14%">公文文號</th>
                 <th width="15%">截止日期</th>
-                <th width="12%">倒數天數</th>
+                <th width="10%">倒數天數</th>
                 <th width="15%">完成日期</th>
                 <th width="13%">狀態</th>
             </tr>
@@ -212,11 +228,12 @@
         { id: 2, title: "上學期開課申請", note: "", doc: "", due: "", finish: "" },
         { id: 3, title: "成長測驗日期", note: "", doc: "", due: "", finish: "" },
         { id: 4, title: "寒假開課申請", note: "", doc: "", due: "", finish: "" },
-        { id: 5, title: "上學期開課申請", note: "", doc: "", due: "", finish: "" },
+        { id: 5, title: "下學期開課申請", note: "", doc: "", due: "", finish: "" },
         { id: 6, title: "篩選測驗日期", note: "", doc: "", due: "", finish: "" }
     ];
 
     let tasks = [];
+    let isEditMode = false; // 控制是否處於編輯標題模式
 
     // 初始化：讀取 LocalStorage 或使用預設資料
     function init() {
@@ -224,15 +241,30 @@
         if (savedData) {
             tasks = JSON.parse(savedData);
         } else {
-            tasks = JSON.parse(JSON.stringify(defaultData)); // 深拷貝預設資料
+            tasks = JSON.parse(JSON.stringify(defaultData)); 
+        }
+        renderTable();
+    }
+
+    // 切換編輯模式
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        const btn = document.getElementById('edit-btn');
+        if (isEditMode) {
+            btn.innerHTML = '💾 儲存並離開編輯';
+            btn.style.backgroundColor = '#27ae60'; // 變成綠色提醒正在編輯
+        } else {
+            btn.innerHTML = '✏️ 進入編輯模式';
+            btn.style.backgroundColor = '#4eb6e1';
         }
         renderTable();
     }
 
     // 民國日期轉換 (格式: 1150226 -> 115/02/26 (四))
     function formatROCDate(val) {
+        if (!val) return "";
         val = val.trim();
-        const regex = /^(\d{2,3})(\d{2})(\d{2})$/; // 支援 115 或 99 年
+        const regex = /^(\d{2,3})(\d{2})(\d{2})$/; 
         if (regex.test(val)) {
             const match = val.match(regex);
             const y = parseInt(match[1]);
@@ -240,20 +272,18 @@
             const d = parseInt(match[3]);
             const date = new Date(y + 1911, m - 1, d);
             
-            // 防呆檢查日期是否合理
             if (date.getFullYear() === y + 1911 && date.getMonth() === m - 1 && date.getDate() === d) {
                 const days = ['日', '一', '二', '三', '四', '五', '六'];
                 return `${y}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')} (${days[date.getDay()]})`;
             }
         }
-        return val; // 如果已經格式化過或格式不對，就直接回傳原本的值
+        return val; 
     }
 
     // 計算倒數天數與狀態
     function calculateCountdown(dueStr, isFinished) {
         if (!dueStr || isFinished) return { text: "-", class: "text-none", category: "none" };
         
-        // 解析 115/02/26 (四) 這種格式
         const match = dueStr.match(/(\d{2,3})\/(\d{2})\/(\d{2})/);
         if (!match) return { text: "-", class: "text-none", category: "none" };
 
@@ -262,7 +292,7 @@
         const d = parseInt(match[3]);
         
         const dueDate = new Date(y, m, d);
-        dueDate.setHours(23, 59, 59, 999); // 截止日期的最後一刻
+        dueDate.setHours(23, 59, 59, 999); 
         const today = new Date();
         
         const diffTime = dueDate - today;
@@ -286,7 +316,11 @@
         }
         tasks[index][field] = value;
         localStorage.setItem('school_memo_data', JSON.stringify(tasks));
-        renderTable();
+        
+        // 若為標題編輯中，不用一直重新渲染整個表格以免輸入框失去焦點
+        if(field !== 'title') {
+            renderTable();
+        }
     }
 
     // 清除資料
@@ -294,6 +328,9 @@
         if(confirm("確定要清除所有填寫紀錄，還原成初始狀態嗎？")) {
             localStorage.removeItem('school_memo_data');
             tasks = JSON.parse(JSON.stringify(defaultData));
+            isEditMode = false;
+            document.getElementById('edit-btn').innerHTML = '✏️ 進入編輯模式';
+            document.getElementById('edit-btn').style.backgroundColor = '#4eb6e1';
             renderTable();
         }
     }
@@ -320,18 +357,25 @@
                 stats[countdownInfo.category]++;
             }
 
+            // 判斷目前是否為編輯模式，決定標題顯示純文字還是輸入框
+            const titleHTML = isEditMode 
+                ? `<input type="text" class="title-edit-input" value="${task.title}" onblur="updateData(${index}, 'title', this.value)" onkeypress="if(event.key === 'Enter') this.blur();">`
+                : `<div class="item-title">${task.title}</div>`;
+
             const tr = document.createElement('tr');
             tr.className = rowClass;
             tr.innerHTML = `
                 <td>${task.id}</td>
-                <td>
-                    <div class="item-title">${task.title}</div>
+                <td class="col-title">
+                    ${titleHTML}
                     <input type="text" class="note-input" placeholder="自訂備註..." value="${task.note}" 
-                        onblur="updateData(${index}, 'note', this.value)">
+                        onblur="updateData(${index}, 'note', this.value)"
+                        onkeypress="if(event.key === 'Enter') this.blur();">
                 </td>
                 <td>
-                    <input type="text" class="doc-input" placeholder="填寫文號" value="${task.doc}" 
-                        onblur="updateData(${index}, 'doc', this.value)">
+                    <input type="text" placeholder="填寫文號" value="${task.doc}" 
+                        onblur="updateData(${index}, 'doc', this.value)"
+                        onkeypress="if(event.key === 'Enter') this.blur();">
                 </td>
                 <td>
                     <input type="text" placeholder="如 1150226" value="${task.due}" 
