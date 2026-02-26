@@ -3,224 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教務/排課備忘錄</title>
+    <title>教務備忘錄</title>
     <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --table-header: #35465d;
+            --row-incomplete: #feebec;
+            --row-complete: #e6f7ec;
+            --text-dark: #333;
+            --border-color: #ddd;
+        }
         body {
             font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
-            background-color: #f4f4f9;
-            padding: 20px;
-            max-width: 800px;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 30px 20px;
+            color: var(--text-dark);
+        }
+        .container {
+            max-width: 1100px;
             margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 20px 30px 40px;
+        }
+        /* Header & Stats */
+        .header-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .title-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
         }
         h1 {
-            text-align: center;
-            color: #333;
-        }
-        .task-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        /* 預設狀態 (未完成 - 紅色背景) */
-        .task {
-            background-color: #ffeaea; /* 淡紅色 */
-            border: 1px solid #ffb3b3;
-            border-left: 8px solid #ff4d4d;
-            border-radius: 8px;
-            padding: 15px 20px;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-        /* 完成狀態 (綠色背景) */
-        .task.completed {
-            background-color: #eafbee; /* 淡綠色 */
-            border: 1px solid #b3f0c3;
-            border-left: 8px solid #28a745;
-        }
-        .task-title {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 15px;
+            margin: 0;
+            font-size: 1.5rem;
             color: #222;
         }
-        .date-inputs {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
+        .title-badge {
+            background-color: #ffebd9;
+            color: #d97706;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
         }
-        .input-group {
+        .stats-dashboard {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-pill {
             display: flex;
             align-items: center;
-            gap: 10px;
-        }
-        .input-group label {
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.95rem;
             font-weight: bold;
-            color: #555;
         }
-        .input-group input {
+        .stat-safe { background-color: #e6f7ec; color: #2e7d32; border: 1px solid #c8e6c9; }
+        .stat-urgent { background-color: #feebec; color: #c62828; border: 1px solid #ffcdd2; }
+        .stat-overdue { background-color: #35465d; color: #fff; border: 1px solid #2c3e50; }
+        
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.9rem;
+            transition: opacity 0.2s;
+        }
+        .btn:hover { opacity: 0.8; }
+        .btn-edit { background-color: #4eb6e1; color: white; }
+        .btn-clear { background-color: #e74c3c; color: white; margin-top: 20px; display: block; margin-left: auto; margin-right: auto;}
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th {
+            background-color: var(--table-header);
+            color: white;
+            padding: 12px;
+            font-weight: normal;
+            font-size: 0.95rem;
+        }
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid white;
+            vertical-align: middle;
+        }
+        .status-incomplete { background-color: var(--row-incomplete); }
+        .status-complete { background-color: var(--row-complete); }
+        
+        /* Inputs & Elements */
+        .item-title {
+            text-align: left;
+            font-weight: bold;
+            font-size: 1.05rem;
+            margin-bottom: 5px;
+        }
+        input[type="text"] {
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            font-size: 1em;
-            width: 220px;
+            text-align: center;
+            font-size: 0.9rem;
+            width: 120px;
+            background: rgba(255,255,255,0.8);
         }
-        .input-group input:focus {
+        input[type="text"]:focus {
             outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 5px rgba(0,123,255,0.3);
+            border-color: #4eb6e1;
+            background: #fff;
         }
-        .hint {
-            font-size: 0.85em;
+        .note-input {
+            width: 90%;
+            text-align: left !important;
+            border: 1px dashed #aaa !important;
+            background: transparent !important;
+            font-size: 0.85rem !important;
             color: #666;
-            margin-top: 5px;
+            padding: 4px 8px !important;
         }
+        .doc-input {
+            width: 110px;
+        }
+        
+        /* Badges & Text Colors */
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .badge-incomplete { background-color: #ffcdd2; color: #c62828; }
+        .badge-complete { background-color: #c8e6c9; color: #2e7d32; }
+        
+        .text-safe { color: #2e7d32; font-weight: bold; }
+        .text-urgent { color: #d97706; font-weight: bold; }
+        .text-overdue { color: #c62828; font-weight: bold; }
+        .text-none { color: #999; }
     </style>
 </head>
 <body>
 
-    <h1>📝 學校事務提醒備忘錄</h1>
-    <p style="text-align: center; color: #555;">輸入民國日期 (如: 1150226) 會自動轉換格式。<br>填寫「完成日期」即可將該項目標示為完成（轉為綠色）。</p>
-
-    <div class="task-container">
-        <div class="task" id="task1">
-            <div class="task-title">1. 暑假開課申請</div>
-            <div class="date-inputs">
-                <div class="input-group">
-                    <label>到期日期:</label>
-                    <input type="text" class="date-input due-date" placeholder="例如: 1150226">
-                </div>
-                <div class="input-group">
-                    <label>完成日期:</label>
-                    <input type="text" class="date-input completion-date" placeholder="例如: 1150226">
-                </div>
-            </div>
+<div class="container">
+    <div class="header-section">
+        <div class="title-wrapper">
+            <h1>📝 教務開課與測驗備忘錄</h1>
+            <div class="title-badge" id="main-badge">尚有 6 項未完成</div>
         </div>
-
-        <div class="task" id="task2">
-            <div class="task-title">2. 上學期開課申請</div>
-            <div class="date-inputs">
-                <div class="input-group">
-                    <label>到期日期:</label>
-                    <input type="text" class="date-input due-date" placeholder="例如: 1150226">
-                </div>
-                <div class="input-group">
-                    <label>完成日期:</label>
-                    <input type="text" class="date-input completion-date" placeholder="例如: 1150226">
-                </div>
-            </div>
-        </div>
-
-        <div class="task" id="task3">
-            <div class="task-title">3. 成長測驗日期</div>
-            <div class="date-inputs">
-                <div class="input-group">
-                    <label>到期日期:</label>
-                    <input type="text" class="date-input due-date" placeholder="例如: 1150226">
-                </div>
-                <div class="input-group">
-                    <label>完成日期:</label>
-                    <input type="text" class="date-input completion-date" placeholder="例如: 1150226">
-                </div>
-            </div>
-        </div>
-
-        <div class="task" id="task4">
-            <div class="task-title">4. 寒假開課申請</div>
-            <div class="date-inputs">
-                <div class="input-group">
-                    <label>到期日期:</label>
-                    <input type="text" class="date-input due-date" placeholder="例如: 1150226">
-                </div>
-                <div class="input-group">
-                    <label>完成日期:</label>
-                    <input type="text" class="date-input completion-date" placeholder="例如: 1150226">
-                </div>
-            </div>
-        </div>
-
-        <div class="task" id="task5">
-            <div class="task-title">5. 上學期開課申請</div>
-            <div class="date-inputs">
-                <div class="input-group">
-                    <label>到期日期:</label>
-                    <input type="text" class="date-input due-date" placeholder="例如: 1150226">
-                </div>
-                <div class="input-group">
-                    <label>完成日期:</label>
-                    <input type="text" class="date-input completion-date" placeholder="例如: 1150226">
-                </div>
-            </div>
-        </div>
-
-        <div class="task" id="task6">
-            <div class="task-title">6. 篩選測驗日期</div>
-            <div class="date-inputs">
-                <div class="input-group">
-                    <label>到期日期:</label>
-                    <input type="text" class="date-input due-date" placeholder="例如: 1150226">
-                </div>
-                <div class="input-group">
-                    <label>完成日期:</label>
-                    <input type="text" class="date-input completion-date" placeholder="例如: 1150226">
-                </div>
-            </div>
+        <div class="stats-dashboard">
+            <div class="stat-pill stat-safe">🟢 時間充裕 : <span id="stat-safe">0</span> 項</div>
+            <div class="stat-pill stat-urgent">🔴 緊急 : <span id="stat-urgent">0</span> 項</div>
+            <div class="stat-pill stat-overdue">⚫ 逾期 : <span id="stat-overdue">0</span> 項</div>
         </div>
     </div>
 
-    <script>
-        // 處理民國日期轉換 (格式: 1150226 -> 115年02月26日 星期X)
-        function formatROCDate(inputStr) {
-            // 檢查是否為剛好 7 位數的純數字
-            const regex = /^(\d{3})(\d{2})(\d{2})$/;
-            if (regex.test(inputStr)) {
-                const match = inputStr.match(regex);
-                const rocYear = parseInt(match[1]);
-                const month = parseInt(match[2]);
-                const day = parseInt(match[3]);
-                
-                // 轉換為西元年以取得星期幾 (西元年 = 民國年 + 1911)
-                const gregorianYear = rocYear + 1911;
-                const dateObj = new Date(gregorianYear, month - 1, day);
-                
-                // 檢查日期是否有效 (避免輸入 1150231 這種不存在的日期)
-                if (dateObj.getFullYear() === gregorianYear && dateObj.getMonth() === month - 1 && dateObj.getDate() === day) {
-                    const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-                    const weekdayStr = weekdays[dateObj.getDay()];
-                    
-                    return `${rocYear}年${String(month).padStart(2, '0')}月${String(day).padStart(2, '0')}日 (${weekdayStr})`;
-                }
-            }
-            // 如果格式不符或日期無效，則返回原本的輸入內容
-            return inputStr;
+    <div class="toolbar">
+        <button class="btn btn-edit">✏️ 進入編輯模式</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th width="5%">項次</th>
+                <th width="25%">申請項目與備註</th>
+                <th width="15%">相關編號/文號</th>
+                <th width="15%">截止日期</th>
+                <th width="12%">倒數天數</th>
+                <th width="15%">完成日期</th>
+                <th width="13%">狀態</th>
+            </tr>
+        </thead>
+        <tbody id="table-body">
+            </tbody>
+    </table>
+
+    <button class="btn btn-clear" onclick="resetData()">⚠️ 清除所有紀錄 (還原原廠設定)</button>
+</div>
+
+<script>
+    // 預設資料設定
+    const defaultData = [
+        { id: 1, title: "暑假開課申請", note: "", doc: "", due: "", finish: "" },
+        { id: 2, title: "上學期開課申請", note: "", doc: "", due: "", finish: "" },
+        { id: 3, title: "成長測驗日期", note: "", doc: "", due: "", finish: "" },
+        { id: 4, title: "寒假開課申請", note: "", doc: "", due: "", finish: "" },
+        { id: 5, title: "上學期開課申請", note: "", doc: "", due: "", finish: "" },
+        { id: 6, title: "篩選測驗日期", note: "", doc: "", due: "", finish: "" }
+    ];
+
+    let tasks = [];
+
+    // 初始化：讀取 LocalStorage 或使用預設資料
+    function init() {
+        const savedData = localStorage.getItem('school_memo_data');
+        if (savedData) {
+            tasks = JSON.parse(savedData);
+        } else {
+            tasks = JSON.parse(JSON.stringify(defaultData)); // 深拷貝預設資料
         }
+        renderTable();
+    }
 
-        // 為所有日期輸入框加上事件監聽器
-        document.querySelectorAll('.date-input').forEach(input => {
-            // 當輸入框失去焦點 (點擊外面或按下 Tab) 時觸發
-            input.addEventListener('blur', function() {
-                // 自動轉換日期格式
-                this.value = formatROCDate(this.value.trim());
+    // 民國日期轉換 (格式: 1150226 -> 115/02/26 (四))
+    function formatROCDate(val) {
+        val = val.trim();
+        const regex = /^(\d{2,3})(\d{2})(\d{2})$/; // 支援 115 或 99 年
+        if (regex.test(val)) {
+            const match = val.match(regex);
+            const y = parseInt(match[1]);
+            const m = parseInt(match[2]);
+            const d = parseInt(match[3]);
+            const date = new Date(y + 1911, m - 1, d);
+            
+            // 防呆檢查日期是否合理
+            if (date.getFullYear() === y + 1911 && date.getMonth() === m - 1 && date.getDate() === d) {
+                const days = ['日', '一', '二', '三', '四', '五', '六'];
+                return `${y}/${String(m).padStart(2, '0')}/${String(d).padStart(2, '0')} (${days[date.getDay()]})`;
+            }
+        }
+        return val; // 如果已經格式化過或格式不對，就直接回傳原本的值
+    }
 
-                // 如果是「完成日期」的輸入框，檢查是否為空來切換顏色
-                if (this.classList.contains('completion-date')) {
-                    const taskDiv = this.closest('.task');
-                    if (this.value !== '') {
-                        // 有填寫完成日期，加上 completed class (變綠色)
-                        taskDiv.classList.add('completed');
-                    } else {
-                        // 清空完成日期，移除 completed class (變回紅色)
-                        taskDiv.classList.remove('completed');
-                    }
-                }
-            });
+    // 計算倒數天數與狀態
+    function calculateCountdown(dueStr, isFinished) {
+        if (!dueStr || isFinished) return { text: "-", class: "text-none", category: "none" };
+        
+        // 解析 115/02/26 (四) 這種格式
+        const match = dueStr.match(/(\d{2,3})\/(\d{2})\/(\d{2})/);
+        if (!match) return { text: "-", class: "text-none", category: "none" };
 
-            // 按下 Enter 鍵也觸發 blur 效果
-            input.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    this.blur();
-                }
-            });
+        const y = parseInt(match[1]) + 1911;
+        const m = parseInt(match[2]) - 1;
+        const d = parseInt(match[3]);
+        
+        const dueDate = new Date(y, m, d);
+        dueDate.setHours(23, 59, 59, 999); // 截止日期的最後一刻
+        const today = new Date();
+        
+        const diffTime = dueDate - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return { text: `逾期 ${Math.abs(diffDays)} 天`, class: "text-overdue", category: "overdue" };
+        } else if (diffDays === 0) {
+            return { text: "今天截止", class: "text-urgent", category: "urgent" };
+        } else if (diffDays <= 7) {
+            return { text: `剩餘 ${diffDays} 天`, class: "text-urgent", category: "urgent" };
+        } else {
+            return { text: `剩餘 ${diffDays} 天`, class: "text-safe", category: "safe" };
+        }
+    }
+
+    // 更新資料並儲存
+    function updateData(index, field, value) {
+        if (field === 'due' || field === 'finish') {
+            value = formatROCDate(value);
+        }
+        tasks[index][field] = value;
+        localStorage.setItem('school_memo_data', JSON.stringify(tasks));
+        renderTable();
+    }
+
+    // 清除資料
+    function resetData() {
+        if(confirm("確定要清除所有填寫紀錄，還原成初始狀態嗎？")) {
+            localStorage.removeItem('school_memo_data');
+            tasks = JSON.parse(JSON.stringify(defaultData));
+            renderTable();
+        }
+    }
+
+    // 渲染表格與統計
+    function renderTable() {
+        const tbody = document.getElementById('table-body');
+        tbody.innerHTML = '';
+
+        let unfinishedCount = 0;
+        let stats = { safe: 0, urgent: 0, overdue: 0 };
+
+        tasks.forEach((task, index) => {
+            const isFinished = task.finish !== "";
+            const rowClass = isFinished ? "status-complete" : "status-incomplete";
+            const statusBadge = isFinished 
+                ? `<span class="badge badge-complete">✔️ 已完成</span>` 
+                : `<span class="badge badge-incomplete">❌ 未完成</span>`;
+            
+            if (!isFinished) unfinishedCount++;
+
+            const countdownInfo = calculateCountdown(task.due, isFinished);
+            if (!isFinished && countdownInfo.category !== 'none') {
+                stats[countdownInfo.category]++;
+            }
+
+            const tr = document.createElement('tr');
+            tr.className = rowClass;
+            tr.innerHTML = `
+                <td>${task.id}</td>
+                <td>
+                    <div class="item-title">${task.title}</div>
+                    <input type="text" class="note-input" placeholder="自訂備註..." value="${task.note}" 
+                        onblur="updateData(${index}, 'note', this.value)">
+                </td>
+                <td>
+                    <input type="text" class="doc-input" placeholder="填寫文號" value="${task.doc}" 
+                        onblur="updateData(${index}, 'doc', this.value)">
+                </td>
+                <td>
+                    <input type="text" placeholder="如 1150226" value="${task.due}" 
+                        onblur="updateData(${index}, 'due', this.value)"
+                        onkeypress="if(event.key === 'Enter') this.blur();">
+                </td>
+                <td class="${countdownInfo.class}">${countdownInfo.text}</td>
+                <td>
+                    <input type="text" placeholder="如 1150226" value="${task.finish}" 
+                        onblur="updateData(${index}, 'finish', this.value)"
+                        onkeypress="if(event.key === 'Enter') this.blur();">
+                </td>
+                <td>${statusBadge}</td>
+            `;
+            tbody.appendChild(tr);
         });
-    </script>
+
+        // 更新頂部儀表板
+        document.getElementById('main-badge').innerText = unfinishedCount === 0 ? "🎉 全部完成！" : `尚有 ${unfinishedCount} 項未完成`;
+        document.getElementById('stat-safe').innerText = stats.safe;
+        document.getElementById('stat-urgent').innerText = stats.urgent;
+        document.getElementById('stat-overdue').innerText = stats.overdue;
+    }
+
+    // 啟動程式
+    init();
+</script>
+
 </body>
 </html>
