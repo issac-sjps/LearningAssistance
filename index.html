@@ -3,99 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助資源入口網</title>
+    <title>學習扶助系統入口網</title>
     <style>
-        /* 頁面基礎設定 */
+        :root {
+            --primary-color: #4A90E2;
+            --bg-color: #F5F7FA;
+            --card-bg: #FFFFFF;
+            --text-main: #333333;
+            --text-sub: #7A8B9A;
+        }
+
         body {
-            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; /* 微軟正黑體 */
-            background-color: #f4f7f6; /* 淡灰背景，保護眼睛 */
+            font-family: "Microsoft JhengHei", "PingFang TC", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--text-sub);
+            font-size: 1.1rem;
             margin: 0;
         }
 
-        /* 卡片容器設計 */
-        .container {
-            background-color: #ffffff;
-            width: 90%;
-            max-width: 480px; /* 手機上滿版，電腦上限制寬度 */
-            padding: 40px 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1); /* 柔和陰影 */
-            text-align: center;
-        }
-
-        /* 標題設計 */
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 10px;
-            font-size: 1.8rem;
-        }
-
-        p.subtitle {
-            color: #7f8c8d;
-            margin-bottom: 30px;
-            font-size: 1rem;
-        }
-
-        /* 按鈕通用樣式 */
-        .btn {
-            display: block;
+        /* 網格排版：讓卡片自動適應螢幕寬度 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1px));
+            gap: 25px;
             width: 100%;
-            padding: 18px 0;
-            margin-bottom: 20px;
-            text-decoration: none;
-            color: white;
-            border-radius: 50px; /* 圓角按鈕 */
-            font-size: 1.1rem;
+            max-width: 1000px;
+        }
+
+        /* 卡片設計 */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 25px 20px;
+            text-align: center;
+            text-decoration: none; /* 移除超連結底線 */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border-top: 4px solid transparent;
+        }
+
+        /* 懸停特效 */
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            border-top: 4px solid var(--primary-color);
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
             font-weight: bold;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-sizing: border-box;
+            color: var(--text-main);
+            margin-bottom: 8px;
         }
 
-        /* 按鈕懸停特效 */
-        .btn:hover {
-            transform: translateY(-3px); /* 輕微上浮 */
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        .card-desc {
+            font-size: 0.9rem;
+            color: var(--text-sub);
         }
 
-        /* 第一個按鈕顏色 (藍色系 - 調查表) */
-        .btn-survey {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* 系統維護區塊的特定顏色 */
+        .card-test:hover {
+            border-top: 4px solid #E74C3C;
         }
 
-        /* 第二個按鈕顏色 (綠色系 - 編班網) */
-        .btn-class {
-            background: linear-gradient(135deg, #2af598 0%, #009efd 100%);
-        }
-
-        /* 頁尾版權文字 */
         .footer {
-            margin-top: 30px;
-            font-size: 0.8rem;
-            color: #bdc3c7;
+            margin-top: 50px;
+            color: var(--text-sub);
+            font-size: 0.9rem;
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h1>學習扶助資源入口網</h1>
-        <p class="subtitle">請點選下方按鈕進入相關頁面</p>
+    <div class="header">
+        <h1>📚 學習扶助系統入口網</h1>
+        <p>請點選下方卡片進入各項系統功能</p>
+    </div>
 
-        <a href="考試通知單與上課意願調查表" class="btn btn-survey">
-            📝 考試通知單與意願調查
+    <div class="grid-container">
+        <a href="學習扶助編班網.html" class="card">
+            <div class="card-icon">🏫</div>
+            <div class="card-title">學習扶助編班網</div>
+            <div class="card-desc">查詢與管理編班資訊</div>
         </a>
 
-        <a href="學習扶助編班網" class="btn btn-class">
-            🏫 學習扶助編班網
+        <a href="學扶通知單套印.html" class="card">
+            <div class="card-icon">🖨️</div>
+            <div class="card-title">學扶通知單套印</div>
+            <div class="card-desc">測驗通知與意願調查表產出</div>
         </a>
 
-        <div class="footer">
-            &copy; 學習扶助小組
-        </div>
+        <a href="學生家長電話產出.html" class="card">
+            <div class="card-icon">📞</div>
+            <div class="card-title">學生家長電話產出</div>
+            <div class="card-desc">快速匯出家長聯絡資訊</div>
+        </a>
+
+        <a href="比對是否有學障學生.html" class="card">
+            <div class="card-icon">🔍</div>
+            <div class="card-title">學障學生比對系統</div>
+            <div class="card-desc">比對名單確認特殊生身分</div>
+        </a>
+
+        <a href="學扶行政費計算系統.html" class="card">
+            <div class="card-icon">💰</div>
+            <div class="card-title">行政費計算系統</div>
+            <div class="card-desc">學習扶助經費與鐘點費計算</div>
+        </a>
+
+        <a href="學習扶助備忘錄.html" class="card">
+            <div class="card-icon">📝</div>
+            <div class="card-title">學習扶助備忘錄</div>
+            <div class="card-desc">紀錄重要事項與期程</div>
+        </a>
+
+        <a href="OnlyForTest.html" class="card card-test">
+            <div class="card-icon">⚙️</div>
+            <div class="card-title">系統測試區</div>
+            <div class="card-desc">OnlyForTest</div>
+        </a>
+    </div>
+
+    <div class="footer">
+        &copy; 學習扶助小組 System Tools
     </div>
 
 </body>
