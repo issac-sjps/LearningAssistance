@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助測驗系統 v50.1 (時間表空白隱藏邏輯)</title>
+    <title>學習扶助測驗系統 v50.2 (通知書文字與狀態列自適應)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* --- 全域設定 --- */
@@ -253,7 +253,7 @@
 
     <div class="navbar">
         <div class="nav-left">
-            <h2 style="margin:0;">測驗系統 v50.1</h2>
+            <h2 style="margin:0;">測驗系統 v50.2</h2>
             <button class="active btn-import" onclick="switchTab('data')">1. 資料匯入</button>
         </div>
         
@@ -325,8 +325,14 @@
                         <label>通知書標題</label>
                         <input type="text" id="pn-title" onchange="saveParentNoticeConfig()">
                     </div>
+                    
                     <div class="survey-config-item" style="grid-column: span 2;">
-                        <label>開頭問候語</label>
+                        <label>開頭問候首句</label>
+                        <input type="text" id="pn-greeting" onchange="saveParentNoticeConfig()">
+                    </div>
+
+                    <div class="survey-config-item" style="grid-column: span 2;">
+                        <label>開頭問候內容</label>
                         <textarea id="pn-intro" rows="6" onchange="saveParentNoticeConfig()"></textarea>
                     </div>
                     
@@ -474,7 +480,6 @@
 <script>
     let globalStudents = [];
     
-    // v49.0 更新：所有地點統一改為 "暫定至善樓二樓教室"
     const periodDefaults = {
         summer: {
             year: "113", semester: "暑假", date: "114年7月1日~7月20日", time: "週一至週五 8:40~11:50",
@@ -517,9 +522,11 @@
 
     let surveyData = JSON.parse(JSON.stringify(periodDefaults));
     
+    // v50.2: 新增 greeting (問候首句)
     const noticeTemplates = {
         growth: {
             title: "114學年度上學期教育部學習扶助實施方案-成長測驗通知單",
+            greeting: "您好！114學年度上學期本校成長測驗規劃如下：",
             intro: `(一)日期：【114年11月24日~114年12月12日】共三週。\n(二)時間：【早自修 07:50~08:30】或【午休 12:40~13:20】。\n(三)地點：詳見下方時間表。\n(四)考試科目：國語、數學、英語。\n(五)本通知單回條請於【114年11月21日(星期五) 16:00】前交予導師轉交至教務處。`,
             reason: `(一)發放對象為篩選測驗未通過或需要扶助之名單。\n(二)測驗的目的為了提醒學扶任課老師檢核自己的教學成效與學生的學習狀況。\n(三)考試內容為本學年度的教學內容。`,
             footer: "新莊國小教務處 3411373 主任#111 註冊組#112 敬啟",
@@ -528,6 +535,7 @@
         },
         screening: {
             title: "114學年度上學期教育部學習扶助實施方案-篩選測驗通知單",
+            greeting: "您好！114學年度上學期本校篩選測驗規劃如下：",
             intro: `(一)日期：【114年5月20日~6月10日】共三週。\n(二)時間：【早自修 07:50~08:30】或【午休 12:40~13:20】。\n(三)地點：詳見下方時間表。\n(四)考試科目：國語、數學、英語。\n(五)本通知單回條請於【114年5月15日(星期五) 16:00】前交予導師轉交至教務處。`,
             reason: `(一)發放對象為113下學期期中後有參與篩選測驗的名單中，其中該測驗未通過的同學。\n(二)測驗的目的為了提醒學扶任課老師檢核自己的教學成效以及確認學生的學習狀況。\n(三)考試內容為113學年度的教學內容，假設目前為二年級，考試內容一年級內容，預計考題會跟11405的篩選測驗相關或類似。`,
             footer: "新莊國小教務處 3411373 主任#111 註冊組#112 敬啟",
@@ -619,6 +627,7 @@
         const tmpl = noticeTemplates[type];
         
         document.getElementById('pn-title').value = tmpl.title;
+        document.getElementById('pn-greeting').value = tmpl.greeting; // v50.2
         document.getElementById('pn-intro').value = tmpl.intro;
         document.getElementById('pn-reason').value = tmpl.reason;
         document.getElementById('pn-footer').value = tmpl.footer;
@@ -631,6 +640,7 @@
     function saveParentNoticeConfig() {
         parentNoticeConfig = {
             title: document.getElementById('pn-title').value,
+            greeting: document.getElementById('pn-greeting').value, // v50.2
             intro: document.getElementById('pn-intro').value,
             reason: document.getElementById('pn-reason').value,
             footer: document.getElementById('pn-footer').value,
@@ -662,11 +672,11 @@
                 dE: document.getElementById(`d-e-${i}`).value, lE: document.getElementById(`l-e-${i}`).value,
             };
         }
-        localStorage.setItem('exam_v50_1_config', JSON.stringify(config));
+        localStorage.setItem('exam_v50_2_config', JSON.stringify(config));
     }
 
     function loadConfig() {
-        const saved = localStorage.getItem('exam_v50_1_config');
+        const saved = localStorage.getItem('exam_v50_2_config');
         if(saved) {
             const c = JSON.parse(saved);
             if(c.slipTitle) document.getElementById('slip-title').value = c.slipTitle;
@@ -679,7 +689,13 @@
             }
             if(c.parentNotice) {
                 parentNoticeConfig = c.parentNotice;
+                // 兼容舊資料：如果沒有 greeting，自動產生一個預設的
+                if(!parentNoticeConfig.greeting) {
+                     const prefix = parentNoticeConfig.title ? parentNoticeConfig.title.substring(0,9) : '114學年度上學期';
+                     parentNoticeConfig.greeting = `您好！${prefix}本校成長測驗規劃如下：`;
+                }
                 document.getElementById('pn-title').value = parentNoticeConfig.title;
+                document.getElementById('pn-greeting').value = parentNoticeConfig.greeting; // v50.2
                 document.getElementById('pn-intro').value = parentNoticeConfig.intro;
                 document.getElementById('pn-reason').value = parentNoticeConfig.reason;
                 document.getElementById('pn-footer').value = parentNoticeConfig.footer;
@@ -702,12 +718,14 @@
         document.getElementById('survey-period-select').value = 'semester1';
         switchSurveyPeriod();
         
-        document.getElementById('pn-title').value = parentNoticeConfig.title;
-        document.getElementById('pn-intro').value = parentNoticeConfig.intro;
-        document.getElementById('pn-reason').value = parentNoticeConfig.reason;
-        document.getElementById('pn-footer').value = parentNoticeConfig.footer;
-        document.getElementById('pn-reply-title').value = parentNoticeConfig.replyTitle;
-        document.getElementById('pn-reply-deadline').value = parentNoticeConfig.replyDeadline;
+        // 確保初始載入時畫面的值正確
+        document.getElementById('pn-title').value = parentNoticeConfig.title || noticeTemplates.growth.title;
+        document.getElementById('pn-greeting').value = parentNoticeConfig.greeting || noticeTemplates.growth.greeting;
+        document.getElementById('pn-intro').value = parentNoticeConfig.intro || noticeTemplates.growth.intro;
+        document.getElementById('pn-reason').value = parentNoticeConfig.reason || noticeTemplates.growth.reason;
+        document.getElementById('pn-footer').value = parentNoticeConfig.footer || noticeTemplates.growth.footer;
+        document.getElementById('pn-reply-title').value = parentNoticeConfig.replyTitle || noticeTemplates.growth.replyTitle;
+        document.getElementById('pn-reply-deadline').value = parentNoticeConfig.replyDeadline || noticeTemplates.growth.replyDeadline;
     }
 
     document.getElementById('uploadFile').addEventListener('change', (e) => {
@@ -752,15 +770,12 @@
             document.getElementById('data-status').innerText = `✅ 已讀取 ${globalStudents.length} 筆資料`;
             document.getElementById('data-status').style.color = 'green';
             
-            // v50.0 呼叫預覽
             renderDataPreview();
-            
             initTeacherSelector(); 
         };
         reader.readAsArrayBuffer(file);
     });
     
-    // v50.0 資料檢視函數
     function renderDataPreview() {
         const container = document.getElementById('data-preview-area');
         if (globalStudents.length === 0) {
@@ -815,7 +830,6 @@
         document.body.className = '';
     }
 
-    // v49.1 新增：列印前檢查資料
     function safePrint() {
         if(globalStudents.length === 0) {
             alert("⚠️ 尚未匯入學生資料，無法列印。\n請先至「資料匯入」分頁上傳 Excel 檔案。");
@@ -825,7 +839,6 @@
         window.print();
     }
 
-    // v50.1: 加入空值判斷，避免顯示「地點：」空字樣
     function generateScheduleTable() {
         let rows = '';
         for(let i=1; i<=6; i++) {
@@ -836,7 +849,6 @@
             const dE = document.getElementById(`d-e-${i}`).value.trim();
             const lE = document.getElementById(`l-e-${i}`).value.trim();
             
-            // v50.1 Logic: If empty, don't show anything.
             const contentC = (dC ? `<span class="sch-time">${dC}</span>` : '') + 
                              (lC ? `<span class="sch-loc">地點：${lC}</span>` : '');
                              
@@ -869,12 +881,11 @@
         </div>`;
     }
 
-    // v46.2: 使用 replace(/\n/g, '<br>') 來緊縮行距
-    // v49.2: 修正為 "114學年度"
     function renderParentNotices() {
         if(globalStudents.length===0) return alert('無資料');
         
         const title = document.getElementById('pn-title').value;
+        const greeting = document.getElementById('pn-greeting').value; // v50.2
         const intro = document.getElementById('pn-intro').value.replace(/\r\n|\r|\n/g, '<br>');
         const reason = document.getElementById('pn-reason').value.replace(/\r\n|\r|\n/g, '<br>');
         
@@ -882,6 +893,10 @@
         const replyTitle = document.getElementById('pn-reply-title').value;
         const replyDeadline = document.getElementById('pn-reply-deadline').value;
         
+        // v50.2 根據測驗類型調整表格標題
+        const pnType = document.getElementById('pn-type').value;
+        const legendText = pnType === 'screening' ? 'X: 本次要考' : 'O: 免考 / X: 本次要考 / 空白: 未測驗免考';
+
         const scheduleTable = generateScheduleTable();
 
         const targets = globalStudents.filter(s => s.isCase);
@@ -896,8 +911,7 @@
                     <td class="status-header">年級</td>
                     <td class="status-header">班級</td>
                     <td class="status-header">姓名</td>
-                    <td colspan="3" class="status-header" style="font-size: 11pt;">O: 免考 / X: 本次要考 / 空白: 未測驗免考</td>
-                </tr>
+                    <td colspan="3" class="status-header" style="font-size: 11pt;">${legendText}</td> </tr>
                 <tr>
                     <td>${s.grade}</td>
                     <td>${s.cls}</td>
@@ -922,8 +936,7 @@
                         <div class="survey-title" style="color:blue;">${title}</div>
                         <div style="margin-bottom:5px; font-weight:bold;">敬愛的家長：</div>
                         <div style="margin-bottom:5px;">
-                            <div style="text-indent:2em; margin-bottom:2px;">您好！${title.substring(0,9)}本校篩選測驗規劃如下：</div>
-                            <div>${intro}</div>
+                            <div style="text-indent:2em; margin-bottom:2px;">${greeting}</div> <div>${intro}</div>
                         </div>
                         
                         <div style="margin-top:5px;">
@@ -956,7 +969,6 @@
         showPreview(html, 'print-surveys');
     }
 
-    // --- 其他渲染函數保持不變 ---
     function renderSurveys() {
         if(globalStudents.length===0) return alert('無資料');
         const config = {
@@ -968,7 +980,7 @@
             note: document.getElementById('s-note').value,
             deadline: document.getElementById('s-deadline').value,
             reasons: document.getElementById('s-reasons').value.split('\n').filter(l=>l.trim()).map(l=>`<p class="survey-indent">${l}</p>`).join(''),
-            footer: document.getElementById('s-footer').value // v48.0
+            footer: document.getElementById('s-footer').value
         };
         const targets = globalStudents.filter(s => s.isCase);
         if(targets.length===0) return alert('無符合條件學生');
@@ -1208,4 +1220,3 @@
 
 </body>
 </html>
-
