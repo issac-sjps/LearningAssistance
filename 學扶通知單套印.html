@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助測驗系統 v51.0 (篩選測驗預設文案更新)</title>
+    <title>學習扶助測驗系統 v52.0 (檢視與列印邏輯分離)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* --- 全域設定 --- */
@@ -253,7 +253,7 @@
 
     <div class="navbar">
         <div class="nav-left">
-            <h2 style="margin:0;">測驗系統 v51.0</h2>
+            <h2 style="margin:0;">測驗系統 v52.0</h2>
             <button class="active btn-import" onclick="switchTab('data')">1. 資料匯入</button>
         </div>
         
@@ -522,7 +522,6 @@
 
     let surveyData = JSON.parse(JSON.stringify(periodDefaults));
     
-    // v51.0 依據您的需求精確覆寫「篩選測驗」預設文案
     const noticeTemplates = {
         growth: {
             title: "114學年度上學期教育部學習扶助實施方案-成長測驗通知單",
@@ -672,11 +671,11 @@
                 dE: document.getElementById(`d-e-${i}`).value, lE: document.getElementById(`l-e-${i}`).value,
             };
         }
-        localStorage.setItem('exam_v51_config', JSON.stringify(config));
+        localStorage.setItem('exam_v52_config', JSON.stringify(config));
     }
 
     function loadConfig() {
-        const saved = localStorage.getItem('exam_v51_config');
+        const saved = localStorage.getItem('exam_v52_config');
         if(saved) {
             const c = JSON.parse(saved);
             if(c.slipTitle) document.getElementById('slip-title').value = c.slipTitle;
@@ -736,7 +735,6 @@
             const rawData = XLSX.utils.sheet_to_json(worksheet);
             
             globalStudents = rawData.map((row, index) => {
-                const checkX = (v) => v && (v.toString().toUpperCase().includes('X') || v.toString().includes('Ｘ'));
                 const getStatus = (v) => {
                     if(!v) return '';
                     const s = v.toString().toUpperCase();
@@ -744,10 +742,15 @@
                     if(s.includes('O') || s.includes('0') || s.includes('Ｏ')) return 'O';
                     return '';
                 };
+                
                 const rC = row['國語文測驗']||row['國語'];
                 const rM = row['數學測驗']||row['數學'];
                 const rE = row['英語測驗']||row['英語'];
                 const studentName = (row['姓名']||'').toString().trim();
+                
+                // v52.0 恢復正確的判斷邏輯：三科全空就不印
+                const checkAny = (v) => v !== undefined && v !== null && v.toString().trim().length > 0;
+                const needToPrint = checkAny(rC) || checkAny(rM) || checkAny(rE);
                 
                 return {
                     id: index,
@@ -756,9 +759,12 @@
                     seat: (row['座號']||'').toString().trim(),
                     name: studentName,
                     idNo: (row['身分證統一編號']||row['身分證']||'').toString().trim(),
-                    chi: checkX(rC), math: checkX(rM), eng: checkX(rE),
+                    chi: checkAny(rC) && getStatus(rC) === 'X', 
+                    math: checkAny(rM) && getStatus(rM) === 'X', 
+                    eng: checkAny(rE) && getStatus(rE) === 'X',
                     statusC: getStatus(rC), statusM: getStatus(rM), statusE: getStatus(rE),
-                    isCase: studentName.length > 0 
+                    // 這裡的 isCase 決定了他會不會被印出來
+                    isCase: needToPrint
                 };
             }).filter(s => s.name.length > 0); 
             
@@ -786,22 +792,30 @@
         let html = '<h4 style="margin:5px 0;">📋 資料匯入檢視</h4>';
         html += '<div style="max-height:400px; overflow-y:auto; border:1px solid #ccc;">';
         html += '<table class="std-table" style="width:100%; font-size:14px;">';
-        html += '<thead style="position:sticky; top:0; background:#eee; z-index:1;"><tr><th>年級</th><th>班級</th><th>座號</th><th>姓名</th><th>國語</th><th>數學</th><th>英語</th><th>備註</th></tr></thead><tbody>';
+        html += '<thead style="position:sticky; top:0; background:#eee; z-index:1;"><tr><th>年級</th><th>班級</th><th>座號</th><th>姓名</th><th>國語</th><th>數學</th><th>英語</th><th>列印狀態</th></tr></thead><tbody>';
 
+        let printCount = 0;
         globalStudents.forEach(s => {
-            html += `<tr>
+            if(s.isCase) printCount++;
+            
+            // v52.0 新增狀態標籤
+            const printStatusHtml = s.isCase 
+                ? '<span style="color:green; font-weight:bold;">✅ 列印</span>' 
+                : '<span style="color:red; font-weight:bold;">❌ 不列印 (無考科)</span>';
+                
+            html += `<tr style="${!s.isCase ? 'background-color:#ffebee;' : ''}">
                 <td>${s.grade}</td>
                 <td>${s.cls}</td>
                 <td>${s.seat}</td>
                 <td>${s.name}</td>
-                <td style="${s.chi?'color:red;font-weight:bold;':''}">${s.statusC || (s.chi?'X':'')}</td>
-                <td style="${s.math?'color:blue;font-weight:bold;':''}">${s.statusM || (s.math?'X':'')}</td>
-                <td style="${s.eng?'color:green;font-weight:bold;':''}">${s.statusE || (s.eng?'X':'')}</td>
-                <td style="font-size:12px; color:#666;">${s.isCase ? '已列入名單' : ''}</td>
+                <td style="${s.chi?'color:red;font-weight:bold;':''}">${s.statusC}</td>
+                <td style="${s.math?'color:blue;font-weight:bold;':''}">${s.statusM}</td>
+                <td style="${s.eng?'color:green;font-weight:bold;':''}">${s.statusE}</td>
+                <td style="font-size:12px;">${printStatusHtml}</td>
             </tr>`;
         });
         html += '</tbody></table></div>';
-        html += `<p style="text-align:right; font-size:12px; color:#666; margin-top:5px;">共 ${globalStudents.length} 筆資料</p>`;
+        html += `<p style="text-align:right; font-size:13px; color:#333; margin-top:5px; font-weight:bold;">總資料數：${globalStudents.length} 筆 │ 實際列印：<span style="color:green;">${printCount}</span> 筆 │ 不列印：<span style="color:red;">${globalStudents.length - printCount}</span> 筆</p>`;
         container.innerHTML = html;
     }
 
@@ -1079,6 +1093,7 @@
         let html = '';
         subList.forEach(sub => {
             globalStudents.forEach(s => {
+                if(!s.isCase) return; // v52.0 Ensure slips only print for valid cases too
                 if(!s[sub]) return;
                 const i = s.grade;
                 const t = document.getElementById(sub=='chi'?`d-c-${i}`:sub=='math'?`d-m-${i}`:`d-e-${i}`).value;
@@ -1120,9 +1135,12 @@
         const grades = {};
         let total = { stu:0, c:0, m:0, e:0 };
         globalStudents.forEach(s => {
+            if(!s.isCase) return; // v52.0 Ensure stats only count valid cases
+            
             if(!grades[s.grade]) grades[s.grade] = { stu:0, c:0, m:0, e:0, classes:{} };
             const g = grades[s.grade];
-            if(s.isCase) { g.stu++; total.stu++; }
+            g.stu++; total.stu++; 
+            
             if(s.chi) { g.c++; total.c++; }
             if(s.math) { g.m++; total.m++; }
             if(s.eng) { g.e++; total.e++; }
@@ -1165,7 +1183,9 @@
         const div = document.getElementById('class-checkboxes');
         div.innerHTML = '';
         const map = new Set();
-        globalStudents.forEach(s => map.add(`${s.grade}-${s.cls}`));
+        globalStudents.forEach(s => {
+            if(s.isCase) map.add(`${s.grade}-${s.cls}`);
+        });
         Array.from(map).sort((a,b) => parseInt(a.split('-')[0])-parseInt(b.split('-')[0]) || parseInt(a.split('-')[1])-parseInt(b.split('-')[1])).forEach(item => {
             div.innerHTML += `<label style="margin-right:10px;"><input type="checkbox" class="cls-cb" value="${item}"> ${item.replace('-','年')}班</label>`;
         });
@@ -1179,7 +1199,7 @@
         let html = pageBreak ? '' : '<div class="teacher-compact-container">';
         cbs.forEach(cb => {
             const [g, c] = cb.value.split('-');
-            const stus = globalStudents.filter(s => s.grade==g && s.cls==c && (s.chi||s.math||s.eng));
+            const stus = globalStudents.filter(s => s.isCase && s.grade==g && s.cls==c && (s.chi||s.math||s.eng));
             if(stus.length>0) {
                 let cnt = {c:0, m:0, e:0};
                 stus.forEach(s => { if(s.chi) cnt.c++; if(s.math) cnt.m++; if(s.eng) cnt.e++; });
@@ -1205,7 +1225,7 @@
         if(!showChi && !showMath && !showEng) return alert('請至少勾選一個科目');
         let html = '';
         const create = (code, name) => {
-            const targets = globalStudents.filter(s => s[code]);
+            const targets = globalStudents.filter(s => s.isCase && s[code]);
             if(targets.length === 0) return '';
             return `<div class="preview-page-wrapper"><div class="sheet-page"><h2 style="text-align:center;">測驗簽到表 (${name}專用)</h2><table class="std-table"><tr><th style="width:5%">序號</th><th style="width:10%">年級</th><th style="width:10%">班級</th><th style="width:10%">座號</th><th style="width:15%">姓名</th><th style="width:20%">身分證</th><th style="width:15%">${name}</th><th style="width:15%">報到打勾</th></tr>${targets.map((s, idx)=>`<tr><td>${idx+1}</td><td>${s.grade}</td><td>${s.cls}</td><td>${s.seat}</td><td>${s.name}</td><td style="font-family:monospace;">${s.idNo}</td><td>●</td><td><span style="font-size:20px;">□</span></td></tr>`).join('')}</table></div></div>`;
         };
