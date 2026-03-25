@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助測驗系統 v50.2 (通知書文字與狀態列自適應)</title>
+    <title>學習扶助測驗系統 v50.3 (強制認列名單版)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* --- 全域設定 --- */
@@ -253,7 +253,7 @@
 
     <div class="navbar">
         <div class="nav-left">
-            <h2 style="margin:0;">測驗系統 v50.2</h2>
+            <h2 style="margin:0;">測驗系統 v50.3</h2>
             <button class="active btn-import" onclick="switchTab('data')">1. 資料匯入</button>
         </div>
         
@@ -522,7 +522,6 @@
 
     let surveyData = JSON.parse(JSON.stringify(periodDefaults));
     
-    // v50.2: 新增 greeting (問候首句)
     const noticeTemplates = {
         growth: {
             title: "114學年度上學期教育部學習扶助實施方案-成長測驗通知單",
@@ -627,7 +626,7 @@
         const tmpl = noticeTemplates[type];
         
         document.getElementById('pn-title').value = tmpl.title;
-        document.getElementById('pn-greeting').value = tmpl.greeting; // v50.2
+        document.getElementById('pn-greeting').value = tmpl.greeting;
         document.getElementById('pn-intro').value = tmpl.intro;
         document.getElementById('pn-reason').value = tmpl.reason;
         document.getElementById('pn-footer').value = tmpl.footer;
@@ -640,7 +639,7 @@
     function saveParentNoticeConfig() {
         parentNoticeConfig = {
             title: document.getElementById('pn-title').value,
-            greeting: document.getElementById('pn-greeting').value, // v50.2
+            greeting: document.getElementById('pn-greeting').value,
             intro: document.getElementById('pn-intro').value,
             reason: document.getElementById('pn-reason').value,
             footer: document.getElementById('pn-footer').value,
@@ -672,11 +671,11 @@
                 dE: document.getElementById(`d-e-${i}`).value, lE: document.getElementById(`l-e-${i}`).value,
             };
         }
-        localStorage.setItem('exam_v50_2_config', JSON.stringify(config));
+        localStorage.setItem('exam_v50_3_config', JSON.stringify(config));
     }
 
     function loadConfig() {
-        const saved = localStorage.getItem('exam_v50_2_config');
+        const saved = localStorage.getItem('exam_v50_3_config');
         if(saved) {
             const c = JSON.parse(saved);
             if(c.slipTitle) document.getElementById('slip-title').value = c.slipTitle;
@@ -689,13 +688,12 @@
             }
             if(c.parentNotice) {
                 parentNoticeConfig = c.parentNotice;
-                // 兼容舊資料：如果沒有 greeting，自動產生一個預設的
                 if(!parentNoticeConfig.greeting) {
                      const prefix = parentNoticeConfig.title ? parentNoticeConfig.title.substring(0,9) : '114學年度上學期';
                      parentNoticeConfig.greeting = `您好！${prefix}本校成長測驗規劃如下：`;
                 }
                 document.getElementById('pn-title').value = parentNoticeConfig.title;
-                document.getElementById('pn-greeting').value = parentNoticeConfig.greeting; // v50.2
+                document.getElementById('pn-greeting').value = parentNoticeConfig.greeting;
                 document.getElementById('pn-intro').value = parentNoticeConfig.intro;
                 document.getElementById('pn-reason').value = parentNoticeConfig.reason;
                 document.getElementById('pn-footer').value = parentNoticeConfig.footer;
@@ -718,7 +716,6 @@
         document.getElementById('survey-period-select').value = 'semester1';
         switchSurveyPeriod();
         
-        // 確保初始載入時畫面的值正確
         document.getElementById('pn-title').value = parentNoticeConfig.title || noticeTemplates.growth.title;
         document.getElementById('pn-greeting').value = parentNoticeConfig.greeting || noticeTemplates.growth.greeting;
         document.getElementById('pn-intro').value = parentNoticeConfig.intro || noticeTemplates.growth.intro;
@@ -739,7 +736,6 @@
             
             globalStudents = rawData.map((row, index) => {
                 const checkX = (v) => v && (v.toString().toUpperCase().includes('X') || v.toString().includes('Ｘ'));
-                const checkAny = (v) => v && v.toString().trim().length > 0;
                 const getStatus = (v) => {
                     if(!v) return '';
                     const s = v.toString().toUpperCase();
@@ -750,18 +746,22 @@
                 const rC = row['國語文測驗']||row['國語'];
                 const rM = row['數學測驗']||row['數學'];
                 const rE = row['英語測驗']||row['英語'];
+                const studentName = (row['姓名']||'').toString().trim();
+                
                 return {
                     id: index,
                     grade: (row['目前年級']||row['年級']||'').toString().trim(),
                     cls: (row['班級']||'').toString().trim(),
                     seat: (row['座號']||'').toString().trim(),
-                    name: (row['姓名']||'').toString().trim(),
+                    name: studentName,
                     idNo: (row['身分證統一編號']||row['身分證']||'').toString().trim(),
                     chi: checkX(rC), math: checkX(rM), eng: checkX(rE),
                     statusC: getStatus(rC), statusM: getStatus(rM), statusE: getStatus(rE),
-                    isCase: checkAny(rC) || checkAny(rM) || checkAny(rE)
+                    // v50.3 核心修改：只要有名字就強制列入名單，不再過濾三科全空的學生
+                    isCase: studentName.length > 0 
                 };
-            });
+            }).filter(s => s.name.length > 0); // 避免讀到 Excel 底部完全空白的幽靈列
+            
             globalStudents.sort((a,b) => {
                 if(a.grade!=b.grade) return parseInt(a.grade)-parseInt(b.grade);
                 if(a.cls!=b.cls) return parseInt(a.cls)-parseInt(b.cls);
@@ -797,7 +797,7 @@
                 <td style="${s.chi?'color:red;font-weight:bold;':''}">${s.statusC || (s.chi?'X':'')}</td>
                 <td style="${s.math?'color:blue;font-weight:bold;':''}">${s.statusM || (s.math?'X':'')}</td>
                 <td style="${s.eng?'color:green;font-weight:bold;':''}">${s.statusE || (s.eng?'X':'')}</td>
-                <td style="font-size:12px; color:#666;">${s.isCase ? '需施測' : ''}</td>
+                <td style="font-size:12px; color:#666;">${s.isCase ? '已列入名單' : ''}</td>
             </tr>`;
         });
         html += '</tbody></table></div>';
@@ -885,7 +885,7 @@
         if(globalStudents.length===0) return alert('無資料');
         
         const title = document.getElementById('pn-title').value;
-        const greeting = document.getElementById('pn-greeting').value; // v50.2
+        const greeting = document.getElementById('pn-greeting').value;
         const intro = document.getElementById('pn-intro').value.replace(/\r\n|\r|\n/g, '<br>');
         const reason = document.getElementById('pn-reason').value.replace(/\r\n|\r|\n/g, '<br>');
         
@@ -893,7 +893,6 @@
         const replyTitle = document.getElementById('pn-reply-title').value;
         const replyDeadline = document.getElementById('pn-reply-deadline').value;
         
-        // v50.2 根據測驗類型調整表格標題
         const pnType = document.getElementById('pn-type').value;
         const legendText = pnType === 'screening' ? 'X: 本次要考' : 'O: 免考 / X: 本次要考 / 空白: 未測驗免考';
 
@@ -911,7 +910,8 @@
                     <td class="status-header">年級</td>
                     <td class="status-header">班級</td>
                     <td class="status-header">姓名</td>
-                    <td colspan="3" class="status-header" style="font-size: 11pt;">${legendText}</td> </tr>
+                    <td colspan="3" class="status-header" style="font-size: 11pt;">${legendText}</td>
+                </tr>
                 <tr>
                     <td>${s.grade}</td>
                     <td>${s.cls}</td>
@@ -936,7 +936,8 @@
                         <div class="survey-title" style="color:blue;">${title}</div>
                         <div style="margin-bottom:5px; font-weight:bold;">敬愛的家長：</div>
                         <div style="margin-bottom:5px;">
-                            <div style="text-indent:2em; margin-bottom:2px;">${greeting}</div> <div>${intro}</div>
+                            <div style="text-indent:2em; margin-bottom:2px;">${greeting}</div>
+                            <div>${intro}</div>
                         </div>
                         
                         <div style="margin-top:5px;">
