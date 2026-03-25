@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助測驗系統 v52.0 (檢視與列印邏輯分離)</title>
+    <title>學習扶助測驗系統 v53.0 (Firebase 雲端整合版)</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <style>
         /* --- 全域設定 --- */
         * { box-sizing: border-box; -webkit-print-color-adjust: exact; }
@@ -247,13 +252,30 @@
         .status-header { font-weight: bold; background-color: #f9f9f9; }
         
         #data-preview-area table th { position: sticky; top: 0; background-color: #eee; z-index: 1; }
+        
+        /* 雲端存檔狀態提示 */
+        #cloud-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #34495e;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 9999;
+        }
     </style>
 </head>
 <body>
 
+    <div id="cloud-status">☁️ 資料已同步至雲端</div>
+
     <div class="navbar">
         <div class="nav-left">
-            <h2 style="margin:0;">測驗系統 v52.0</h2>
+            <h2 style="margin:0;">測驗系統 v53.0</h2>
             <button class="active btn-import" onclick="switchTab('data')">1. 資料匯入</button>
         </div>
         
@@ -478,6 +500,20 @@
     </div>
 
 <script>
+    // --- Firebase 初始化設定 ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyDqOkKvL3k-snAYDs17fLsc1I156_xS-QI",
+      authDomain: "sjps-learningassistance.firebaseapp.com",
+      projectId: "sjps-learningassistance",
+      storageBucket: "sjps-learningassistance.firebasestorage.app",
+      messagingSenderId: "108951710153",
+      appId: "1:108951710153:web:434de73a24160fe3e2e018",
+      measurementId: "G-EGQ7BLK57Y"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    // --------------------------------
+
     let globalStudents = [];
     
     const periodDefaults = {
@@ -485,18 +521,13 @@
             year: "113", semester: "暑假", date: "114年7月1日~7月20日", time: "週一至週五 8:40~11:50",
             loc: "暫定至善樓二樓教室", note: "，若確定開班，另發通知單。", deadline: "114.6.20（五）",
             footer: "新莊國小教務處 3411373 主任#111 註冊組#112 敬啟",
-            reasons: `(1)發放對象為篩選測驗未通過或可以參加扶助之名單。
-(2)有意願參與暑假課程的同學，歡迎參加。
-(3)由教育部提供學校相關經費，給與未通過教育部檢核的同學上該課程。`
+            reasons: `(1)發放對象為篩選測驗未通過或可以參加扶助之名單。\n(2)有意願參與暑假課程的同學，歡迎參加。\n(3)由教育部提供學校相關經費，給與未通過教育部檢核的同學上該課程。`
         },
         semester1: {
             year: "114", semester: "上學期", date: "114年9月22日~114年12月29日", time: "週一、四，下午16:00~17:30",
             loc: "暫定至善樓二樓教室", note: "，若確定開班，另發通知單。", deadline: "114.9.9（星期二）9:00",
             footer: "新莊國小教務處 3411373 主任#111 註冊組#112 敬啟",
-            reasons: `(1)發放對象為篩選測驗未通過或需要扶助之名單。
-(2)期中後會請這些學生進行成長測驗，檢核扶助學習上課成效。
-(3)測驗的目的為了提醒學扶任課老師檢核自己的教學成效與學生的學習狀況。
-(4)由教育部提供學校相關經費，給與未通過教育部檢核的同學上該課程。`
+            reasons: `(1)發放對象為篩選測驗未通過或需要扶助之名單。\n(2)期中後會請這些學生進行成長測驗，檢核扶助學習上課成效。\n(3)測驗的目的為了提醒學扶任課老師檢核自己的教學成效與學生的學習狀況。\n(4)由教育部提供學校相關經費，給與未通過教育部檢核的同學上該課程。`
         },
         winter: {
             year: "114", semester: "寒假", 
@@ -505,18 +536,13 @@
             loc: "暫定至善樓二樓教室", note: "，若確定開班，另發通知單。", 
             deadline: "114.12.19(五)",            
             footer: "新莊國小教務處 3411373 主任#111 註冊組#112 敬啟",
-            reasons: `(1)發放對象為篩選測驗未通過或可以參加扶助之名單。
-(2)有意願參與寒假課程的同學，歡迎參加。
-(3)由教育部提供學校相關經費，給與未通過教育部檢核的同學上該課程。`
+            reasons: `(1)發放對象為篩選測驗未通過或可以參加扶助之名單。\n(2)有意願參與寒假課程的同學，歡迎參加。\n(3)由教育部提供學校相關經費，給與未通過教育部檢核的同學上該課程。`
         },
         semester2: {
             year: "114", semester: "下學期", date: "115年3月1日~6月30日", time: "週一、四，下午16:00~17:30",
             loc: "暫定至善樓二樓教室", note: "，若確定開班，另發通知單。", deadline: "115.2.20（五）",
             footer: "新莊國小教務處 3411373 主任#111 註冊組#112 敬啟",
-            reasons: `(1)發放對象為篩選測驗未通過或可以參加扶助之名單。
-(2)期中後會請這些學生進行篩選測驗，檢核本學年度上課學習上課成效。
-(3)測驗的目的為了提醒現任任課老師檢核自己的教學成效與學生的學習狀況。
-(4)由教育部提供學校相關經費，給與未通過教育部檢核的同學上該課程。`
+            reasons: `(1)發放對象為篩選測驗未通過或可以參加扶助之名單。\n(2)期中後會請這些學生進行篩選測驗，檢核本學年度上課學習上課成效。\n(3)測驗的目的為了提醒現任任課老師檢核自己的教學成效與學生的學習狀況。\n(4)由教育部提供學校相關經費，給與未通過教育部檢核的同學上該課程。`
         }
     };
 
@@ -535,7 +561,7 @@
         screening: {
             title: "114學年度下學期教育部學習扶助實施方案-篩選測驗通知單",
             greeting: "您好！114學年度下學期本校篩選測驗規劃如下：",
-            intro: `(一)日期：【115年5月18日~6月5日】共三週。\n(二)時間：【早自修 07:50~08:30】或【午休 12:40~13:20】。\n(三)地點：預計於5/12發放考前地點通知單。\n(四)考試科目：國語、數學、英語。\n(五)本通知單回條請於【115年4月7日(星期五) 16:00】前交予導師轉交至教務處。`,
+            intro: `(一)日期：【115年5月18日~6月5日】共三週。\n(二)時間：【早自修 07:50~08:30】或【午休 12:40~13:20】。\n(三)地點：預計於5/12發放考前地點通知單。\n(四)考試科目：國語、數學、英語。\n(五)本通知單回條請於【115年4月7日(星期二) 16:00】前交予導師轉交至教務處。`,
             reason: `(一)必考名單：113學年度篩選測驗未通過者，本年度需重測。\n(二)5%名單：114上學期國數英後35%扣除必考者之末5%需測驗。\n(三)測驗目的：確認學習是否達教育部基礎標準，並檢核教學成效。\n(四)考試範圍：114學年度（上下學期）全學年之教學內容。\n(五)提早測驗：因需安排暑期學習扶助調查，無法延至期末考後。\n(六)考前準備：導師已備妥相關考古題，供同學提前練習。\n(七)後續免測：通過即免考12月成長測驗，但明年成績落後仍可能受測。`,
             footer: "新莊國小教務處 3411373 主任#111 註冊組#112 敬啟",
             replyTitle: "114學年度下學期「學習扶助-篩選測驗」通知書",
@@ -548,6 +574,12 @@
     function init() {
         renderGradeSettings();
         loadConfig();
+    }
+
+    function showCloudStatus() {
+        const el = document.getElementById('cloud-status');
+        el.style.display = 'block';
+        setTimeout(() => { el.style.display = 'none'; }, 2000);
     }
 
     function renderGradeSettings() {
@@ -671,58 +703,77 @@
                 dE: document.getElementById(`d-e-${i}`).value, lE: document.getElementById(`l-e-${i}`).value,
             };
         }
-        localStorage.setItem('exam_v52_config', JSON.stringify(config));
+        
+        // --- Firebase 雲端寫入 ---
+        db.collection('exam_system_settings').doc('global_config').set(config)
+            .then(() => {
+                console.log("資料已成功同步至 Firebase 雲端！");
+                showCloudStatus();
+            })
+            .catch((error) => {
+                console.error("雲端存檔失敗:", error);
+            });
     }
 
     function loadConfig() {
-        const saved = localStorage.getItem('exam_v52_config');
-        if(saved) {
-            const c = JSON.parse(saved);
-            if(c.slipTitle) document.getElementById('slip-title').value = c.slipTitle;
-            if(c.surveyPeriods) {
-                surveyData = c.surveyPeriods;
-                ['summer','semester1','winter','semester2'].forEach(k => {
-                    if(!surveyData[k]) surveyData[k] = periodDefaults[k];
-                    if(!surveyData[k].footer) surveyData[k].footer = periodDefaults[k].footer; 
-                });
-            }
-            if(c.parentNotice) {
-                parentNoticeConfig = c.parentNotice;
-                if(!parentNoticeConfig.greeting) {
-                     const prefix = parentNoticeConfig.title ? parentNoticeConfig.title.substring(0,9) : '114學年度上學期';
-                     parentNoticeConfig.greeting = `您好！${prefix}本校成長測驗規劃如下：`;
+        // --- Firebase 雲端讀取 ---
+        db.collection('exam_system_settings').doc('global_config').get().then((doc) => {
+            if(doc.exists) {
+                const c = doc.data();
+                if(c.slipTitle) document.getElementById('slip-title').value = c.slipTitle;
+                if(c.surveyPeriods) {
+                    surveyData = c.surveyPeriods;
+                    ['summer','semester1','winter','semester2'].forEach(k => {
+                        if(!surveyData[k]) surveyData[k] = periodDefaults[k];
+                        if(!surveyData[k].footer) surveyData[k].footer = periodDefaults[k].footer; 
+                    });
                 }
-                document.getElementById('pn-title').value = parentNoticeConfig.title;
-                document.getElementById('pn-greeting').value = parentNoticeConfig.greeting;
-                document.getElementById('pn-intro').value = parentNoticeConfig.intro;
-                document.getElementById('pn-reason').value = parentNoticeConfig.reason;
-                document.getElementById('pn-footer').value = parentNoticeConfig.footer;
-                document.getElementById('pn-reply-title').value = parentNoticeConfig.replyTitle;
-                document.getElementById('pn-reply-deadline').value = parentNoticeConfig.replyDeadline;
-            }
-            if(c.grades) {
-                for(let i=1; i<=6; i++) {
-                    if(c.grades[i]) {
-                        if(c.grades[i].dC) document.getElementById(`d-c-${i}`).value = c.grades[i].dC;
-                        if(c.grades[i].lC) document.getElementById(`l-c-${i}`).value = c.grades[i].lC;
-                        if(c.grades[i].dM) document.getElementById(`d-m-${i}`).value = c.grades[i].dM;
-                        if(c.grades[i].lM) document.getElementById(`l-m-${i}`).value = c.grades[i].lM;
-                        if(c.grades[i].dE) document.getElementById(`d-e-${i}`).value = c.grades[i].dE;
-                        if(c.grades[i].lE) document.getElementById(`l-e-${i}`).value = c.grades[i].lE;
+                if(c.parentNotice) {
+                    parentNoticeConfig = c.parentNotice;
+                    if(!parentNoticeConfig.greeting) {
+                         const prefix = parentNoticeConfig.title ? parentNoticeConfig.title.substring(0,9) : '114學年度上學期';
+                         parentNoticeConfig.greeting = `您好！${prefix}本校成長測驗規劃如下：`;
+                    }
+                    document.getElementById('pn-title').value = parentNoticeConfig.title;
+                    document.getElementById('pn-greeting').value = parentNoticeConfig.greeting;
+                    document.getElementById('pn-intro').value = parentNoticeConfig.intro;
+                    document.getElementById('pn-reason').value = parentNoticeConfig.reason;
+                    document.getElementById('pn-footer').value = parentNoticeConfig.footer;
+                    document.getElementById('pn-reply-title').value = parentNoticeConfig.replyTitle;
+                    document.getElementById('pn-reply-deadline').value = parentNoticeConfig.replyDeadline;
+                }
+                if(c.grades) {
+                    for(let i=1; i<=6; i++) {
+                        if(c.grades[i]) {
+                            if(c.grades[i].dC) document.getElementById(`d-c-${i}`).value = c.grades[i].dC;
+                            if(c.grades[i].lC) document.getElementById(`l-c-${i}`).value = c.grades[i].lC;
+                            if(c.grades[i].dM) document.getElementById(`d-m-${i}`).value = c.grades[i].dM;
+                            if(c.grades[i].lM) document.getElementById(`l-m-${i}`).value = c.grades[i].lM;
+                            if(c.grades[i].dE) document.getElementById(`d-e-${i}`).value = c.grades[i].dE;
+                            if(c.grades[i].lE) document.getElementById(`l-e-${i}`).value = c.grades[i].lE;
+                        }
                     }
                 }
+            } else {
+                console.log("雲端無資料，使用預設值");
             }
-        }
-        document.getElementById('survey-period-select').value = 'semester1';
-        switchSurveyPeriod();
-        
-        document.getElementById('pn-title').value = parentNoticeConfig.title || noticeTemplates.growth.title;
-        document.getElementById('pn-greeting').value = parentNoticeConfig.greeting || noticeTemplates.growth.greeting;
-        document.getElementById('pn-intro').value = parentNoticeConfig.intro || noticeTemplates.growth.intro;
-        document.getElementById('pn-reason').value = parentNoticeConfig.reason || noticeTemplates.growth.reason;
-        document.getElementById('pn-footer').value = parentNoticeConfig.footer || noticeTemplates.growth.footer;
-        document.getElementById('pn-reply-title').value = parentNoticeConfig.replyTitle || noticeTemplates.growth.replyTitle;
-        document.getElementById('pn-reply-deadline').value = parentNoticeConfig.replyDeadline || noticeTemplates.growth.replyDeadline;
+            
+            document.getElementById('survey-period-select').value = 'semester1';
+            switchSurveyPeriod();
+            
+            document.getElementById('pn-title').value = parentNoticeConfig.title || noticeTemplates.growth.title;
+            document.getElementById('pn-greeting').value = parentNoticeConfig.greeting || noticeTemplates.growth.greeting;
+            document.getElementById('pn-intro').value = parentNoticeConfig.intro || noticeTemplates.growth.intro;
+            document.getElementById('pn-reason').value = parentNoticeConfig.reason || noticeTemplates.growth.reason;
+            document.getElementById('pn-footer').value = parentNoticeConfig.footer || noticeTemplates.growth.footer;
+            document.getElementById('pn-reply-title').value = parentNoticeConfig.replyTitle || noticeTemplates.growth.replyTitle;
+            document.getElementById('pn-reply-deadline').value = parentNoticeConfig.replyDeadline || noticeTemplates.growth.replyDeadline;
+            
+        }).catch((error) => {
+            console.error("讀取 Firebase 失敗，使用本機預設值:", error);
+            document.getElementById('survey-period-select').value = 'semester1';
+            switchSurveyPeriod();
+        });
     }
 
     document.getElementById('uploadFile').addEventListener('change', (e) => {
@@ -748,7 +799,6 @@
                 const rE = row['英語測驗']||row['英語'];
                 const studentName = (row['姓名']||'').toString().trim();
                 
-                // v52.0 恢復正確的判斷邏輯：三科全空就不印
                 const checkAny = (v) => v !== undefined && v !== null && v.toString().trim().length > 0;
                 const needToPrint = checkAny(rC) || checkAny(rM) || checkAny(rE);
                 
@@ -763,7 +813,6 @@
                     math: checkAny(rM) && getStatus(rM) === 'X', 
                     eng: checkAny(rE) && getStatus(rE) === 'X',
                     statusC: getStatus(rC), statusM: getStatus(rM), statusE: getStatus(rE),
-                    // 這裡的 isCase 決定了他會不會被印出來
                     isCase: needToPrint
                 };
             }).filter(s => s.name.length > 0); 
@@ -797,8 +846,6 @@
         let printCount = 0;
         globalStudents.forEach(s => {
             if(s.isCase) printCount++;
-            
-            // v52.0 新增狀態標籤
             const printStatusHtml = s.isCase 
                 ? '<span style="color:green; font-weight:bold;">✅ 列印</span>' 
                 : '<span style="color:red; font-weight:bold;">❌ 不列印 (無考科)</span>';
@@ -1093,7 +1140,7 @@
         let html = '';
         subList.forEach(sub => {
             globalStudents.forEach(s => {
-                if(!s.isCase) return; // v52.0 Ensure slips only print for valid cases too
+                if(!s.isCase) return; 
                 if(!s[sub]) return;
                 const i = s.grade;
                 const t = document.getElementById(sub=='chi'?`d-c-${i}`:sub=='math'?`d-m-${i}`:`d-e-${i}`).value;
@@ -1135,7 +1182,7 @@
         const grades = {};
         let total = { stu:0, c:0, m:0, e:0 };
         globalStudents.forEach(s => {
-            if(!s.isCase) return; // v52.0 Ensure stats only count valid cases
+            if(!s.isCase) return; 
             
             if(!grades[s.grade]) grades[s.grade] = { stu:0, c:0, m:0, e:0, classes:{} };
             const g = grades[s.grade];
