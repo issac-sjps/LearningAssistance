@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>學習扶助測驗系統 v50.3 (強制認列名單版)</title>
+    <title>學習扶助測驗系統 v51.0 (篩選測驗預設文案更新)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* --- 全域設定 --- */
@@ -253,7 +253,7 @@
 
     <div class="navbar">
         <div class="nav-left">
-            <h2 style="margin:0;">測驗系統 v50.3</h2>
+            <h2 style="margin:0;">測驗系統 v51.0</h2>
             <button class="active btn-import" onclick="switchTab('data')">1. 資料匯入</button>
         </div>
         
@@ -338,7 +338,7 @@
                     
                     <div class="survey-config-item" style="grid-column: span 2;">
                          <label>目的與原因 (說明文字)</label>
-                         <textarea id="pn-reason" rows="5" onchange="saveParentNoticeConfig()"></textarea>
+                         <textarea id="pn-reason" rows="7" onchange="saveParentNoticeConfig()"></textarea>
                     </div>
 
                     <div class="survey-config-item" style="grid-column: span 2;">
@@ -522,6 +522,7 @@
 
     let surveyData = JSON.parse(JSON.stringify(periodDefaults));
     
+    // v51.0 依據您的需求精確覆寫「篩選測驗」預設文案
     const noticeTemplates = {
         growth: {
             title: "114學年度上學期教育部學習扶助實施方案-成長測驗通知單",
@@ -533,13 +534,13 @@
             replyDeadline: "請於 114.11.21 (星期五) 16:00 前交予導師協助繳交至教務處留存"
         },
         screening: {
-            title: "114學年度上學期教育部學習扶助實施方案-篩選測驗通知單",
-            greeting: "您好！114學年度上學期本校篩選測驗規劃如下：",
-            intro: `(一)日期：【114年5月20日~6月10日】共三週。\n(二)時間：【早自修 07:50~08:30】或【午休 12:40~13:20】。\n(三)地點：詳見下方時間表。\n(四)考試科目：國語、數學、英語。\n(五)本通知單回條請於【114年5月15日(星期五) 16:00】前交予導師轉交至教務處。`,
-            reason: `(一)發放對象為113下學期期中後有參與篩選測驗的名單中，其中該測驗未通過的同學。\n(二)測驗的目的為了提醒學扶任課老師檢核自己的教學成效以及確認學生的學習狀況。\n(三)考試內容為113學年度的教學內容，假設目前為二年級，考試內容一年級內容，預計考題會跟11405的篩選測驗相關或類似。`,
+            title: "114學年度下學期教育部學習扶助實施方案-篩選測驗通知單",
+            greeting: "您好！114學年度下學期本校篩選測驗規劃如下：",
+            intro: `(一)日期：【115年5月18日~6月5日】共三週。\n(二)時間：【早自修 07:50~08:30】或【午休 12:40~13:20】。\n(三)地點：預計於5/12發放考前地點通知單。\n(四)考試科目：國語、數學、英語。\n(五)本通知單回條請於【115年4月7日(星期五) 16:00】前交予導師轉交至教務處。`,
+            reason: `(一)必考名單：113學年度篩選測驗未通過者，本年度需重測。\n(二)5%名單：114上學期國數英後35%扣除必考者之末5%需測驗。\n(三)測驗目的：確認學習是否達教育部基礎標準，並檢核教學成效。\n(四)考試範圍：114學年度（上下學期）全學年之教學內容。\n(五)提早測驗：因需安排暑期學習扶助調查，無法延至期末考後。\n(六)考前準備：導師已備妥相關考古題，供同學提前練習。\n(七)後續免測：通過即免考12月成長測驗，但明年成績落後仍可能受測。`,
             footer: "新莊國小教務處 3411373 主任#111 註冊組#112 敬啟",
-            replyTitle: "114學年度上學期「學習扶助-篩選測驗」通知書",
-            replyDeadline: "請於 114.5.15 (星期五) 16:00 前交予導師協助繳交至教務處留存"
+            replyTitle: "114學年度下學期「學習扶助-篩選測驗」通知書",
+            replyDeadline: "請於 115.4.7 (星期二) 16:00 前交予導師協助繳交至教務處留存"
         }
     };
 
@@ -671,11 +672,11 @@
                 dE: document.getElementById(`d-e-${i}`).value, lE: document.getElementById(`l-e-${i}`).value,
             };
         }
-        localStorage.setItem('exam_v50_3_config', JSON.stringify(config));
+        localStorage.setItem('exam_v51_config', JSON.stringify(config));
     }
 
     function loadConfig() {
-        const saved = localStorage.getItem('exam_v50_3_config');
+        const saved = localStorage.getItem('exam_v51_config');
         if(saved) {
             const c = JSON.parse(saved);
             if(c.slipTitle) document.getElementById('slip-title').value = c.slipTitle;
@@ -757,10 +758,9 @@
                     idNo: (row['身分證統一編號']||row['身分證']||'').toString().trim(),
                     chi: checkX(rC), math: checkX(rM), eng: checkX(rE),
                     statusC: getStatus(rC), statusM: getStatus(rM), statusE: getStatus(rE),
-                    // v50.3 核心修改：只要有名字就強制列入名單，不再過濾三科全空的學生
                     isCase: studentName.length > 0 
                 };
-            }).filter(s => s.name.length > 0); // 避免讀到 Excel 底部完全空白的幽靈列
+            }).filter(s => s.name.length > 0); 
             
             globalStudents.sort((a,b) => {
                 if(a.grade!=b.grade) return parseInt(a.grade)-parseInt(b.grade);
