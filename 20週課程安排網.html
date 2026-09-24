@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>數學精準學習診斷 · 20週課程規劃</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#1c2b2d; --paper:#f6f3ec; --line:#d8d2c2;
+  --teal:#2f6f68; --teal-dk:#1e4b46; --clay:#c1622f;
+  --ok:#3f7d52; --warn:#c1622f; --bad:#b0432f;
+  --card:#ffffff;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#eae6da; --paper:#171d1c; --line:#33403c; --card:#1f2725;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#eae6da; --paper:#171d1c; --line:#33403c; --card:#1f2725;
+}
+*{box-sizing:border-box;}
+html{scroll-padding-top:env(safe-area-inset-top,0px);}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:"Noto Serif TC","Georgia",serif;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  line-height:1.6;
+}
+.wrap{max-width:980px;margin:0 auto;padding:2.5rem 1.5rem 5rem;}
+header.top{border-bottom:2px solid var(--ink);padding-bottom:1.2rem;margin-bottom:2rem;}
+header.top .eyebrow{font-family:-apple-system,"PingFang TC",sans-serif;font-size:.8rem;letter-spacing:.02em;color:var(--teal);margin-bottom:.4rem;}
+h1{font-size:2rem;margin:0 0 .3rem;font-weight:600;}
+.sub{font-family:-apple-system,"PingFang TC",sans-serif;color:var(--ink);opacity:.7;font-size:.95rem;max-width:60ch;}
+
+.upload-zone{
+  display:block;width:100%;box-sizing:border-box;
+  border:1.5px dashed var(--teal);border-radius:8px;background:var(--card);
+  padding:2.5rem 1.5rem;text-align:center;cursor:pointer;
+  transition:border-color .15s, opacity .15s;
+  font-family:-apple-system,"PingFang TC",sans-serif;
+}
+.upload-zone:hover, .upload-zone.drag{border-color:var(--clay);opacity:.9;}
+.upload-zone input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;}
+.upload-zone .icon{font-size:1.8rem;margin-bottom:.6rem;line-height:1;}
+.upload-zone .big{font-size:1.05rem;font-weight:600;margin-bottom:.3rem;}
+.upload-zone .small{font-size:.85rem;opacity:.65;}
+.filename{margin-top:.8rem;font-size:.85rem;color:var(--teal-dk);font-family:-apple-system,"PingFang TC",sans-serif;}
+
+#results{display:none;margin-top:2.5rem;}
+section{margin-bottom:2.6rem;}
+h2{font-family:-apple-system,"PingFang TC",sans-serif;font-size:1.15rem;font-weight:700;
+   border-left:4px solid var(--clay);padding-left:.6rem;margin:0 0 1rem;}
+
+.stat-row{display:flex;gap:1rem;flex-wrap:wrap;}
+.stat{flex:1;min-width:130px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1rem 1.1rem;}
+.stat .n{font-size:1.8rem;font-weight:700;}
+.stat .l{font-family:-apple-system,"PingFang TC",sans-serif;font-size:.78rem;opacity:.65;margin-top:.2rem;}
+.stat.ok .n{color:var(--ok);} .stat.warn .n{color:var(--warn);} .stat.bad .n{color:var(--bad);}
+
+.bar-cat{margin-bottom:.7rem;font-family:-apple-system,"PingFang TC",sans-serif;font-size:.85rem;}
+.bar-cat .lab{display:flex;justify-content:space-between;margin-bottom:.25rem;}
+.bar-track{height:10px;background:var(--line);border-radius:5px;overflow:hidden;}
+.bar-fill{height:100%;background:var(--teal);}
+
+table{width:100%;border-collapse:collapse;font-family:-apple-system,"PingFang TC",sans-serif;font-size:.85rem;}
+th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top;}
+th{font-size:.75rem;opacity:.6;font-weight:600;}
+.tag{display:inline-block;font-size:.7rem;padding:.1rem .5rem;border-radius:3px;margin-right:.3rem;font-weight:600;white-space:nowrap;}
+.tag.c0{background:#e4ecea;color:#1e4b46;} .tag.c1{background:#f2e6da;color:#8a5326;} .tag.c2{background:#eee0e4;color:#8a3050;}
+.tag.c3{background:#e4e7f2;color:#333f8a;} .tag.c4{background:#eaf0d8;color:#4e6b1f;} .tag.c5{background:#f5e2ea;color:#8a2f5e;}
+.tag.c6{background:#dcecec;color:#1f5a5a;} .tag.c7{background:#f0e6f5;color:#5a2f8a;}
+:root[data-theme="dark"] .tag, [data-theme="dark"] .tag{filter:brightness(.35) saturate(1.3);color:#eae6da;}
+.weekcard{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1rem 1.2rem;margin-bottom:.9rem;}
+#classTable{font-size:.8rem;}
+#classTable th, #classTable td{white-space:nowrap;}
+#classTable td.desc-cell{white-space:normal;min-width:220px;}
+.status-dot{display:inline-block;width:1.5em;text-align:center;font-weight:700;border-radius:3px;}
+.status-dot.O{color:var(--ok);} .status-dot.T{color:var(--warn);} .status-dot.X{color:var(--bad);}
+.weekcard .wk-head{display:flex;justify-content:space-between;align-items:baseline;font-family:-apple-system,"PingFang TC",sans-serif;}
+.weekcard .wk-head .wnum{font-weight:700;font-size:1.05rem;}
+.weekcard .wk-head .whours{font-size:.78rem;opacity:.6;}
+.weekcard.review{border-left:3px solid var(--clay);}
+.weekcard ul{margin:.5rem 0 0;padding-left:1.1rem;}
+.weekcard li{margin-bottom:.35rem;}
+.unit-code{font-family:ui-monospace,monospace;font-size:.78rem;opacity:.6;}
+
+#toolbar{display:none;gap:.6rem;margin:1.5rem 0;}
+button.act{font-family:-apple-system,"PingFang TC",sans-serif;background:var(--teal);color:#fff;border:none;
+  padding:.55rem 1.1rem;border-radius:4px;cursor:pointer;font-size:.85rem;}
+button.act.secondary{background:transparent;border:1px solid var(--teal);color:var(--teal);}
+button.act:hover{background:var(--teal-dk);}
+
+#error{display:none;color:var(--bad);font-family:-apple-system,"PingFang TC",sans-serif;font-size:.85rem;margin-top:.8rem;}
+footer{margin-top:3rem;font-size:.75rem;opacity:.5;font-family:-apple-system,"PingFang TC",sans-serif;}
+@media print{ .upload-zone,#toolbar,footer{display:none !important;} body{background:#fff;} }
+@media (max-width:600px){ h1{font-size:1.5rem;} .stat-row{gap:.6rem;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow">AI 精準學習診斷與輔導策略</div>
+    <h1 id="pageTitle">學習診斷 · 20週課程規劃</h1>
+    <div class="sub">上傳學生的「特定學生測驗報告」Excel 檔案（數學／國語文／英語皆可），系統會分析尚未精熟的學習內容，並自動排出 20 週、每週 4 小時的補救教學課程。</div>
+  </header>
+
+  <label class="upload-zone" id="dropzone">
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <div class="icon">📄</div>
+    <div class="big">點擊或拖曳上傳測驗報告 (.xlsx)</div>
+    <div class="small">僅在您的瀏覽器中處理，資料不會上傳到任何伺服器</div>
+    <div class="filename" id="filename"></div>
+  </label>
+  <div id="error"></div>
+
+  <div id="toolbar">
+    <button class="act" onclick="window.print()">列印 / 存成 PDF</button>
+    <button class="act secondary" id="resetBtn">重新上傳檔案</button>
+  </div>
+
+  <div id="classSection" style="display:none;margin-top:2.5rem;">
+    <section>
+      <h2>班級總覽</h2>
+      <div class="sub" style="margin-bottom:1rem;">下表列出每位學生在各學習內容的檢測結果，可用來判斷哪些學生適合排在同一組。選擇下方學生後，會顯示該生的個別診斷與 20 週課程規劃。</div>
+      <div style="overflow-x:auto;"><table id="classTable"></table></div>
+    </section>
+    <section style="margin-top:1.8rem;">
+      <label class="sub" style="display:block;margin-bottom:.5rem;font-weight:600;" for="studentSelect">查看個別學生診斷與課程規劃</label>
+      <select id="studentSelect" style="font-family:-apple-system,'PingFang TC',sans-serif;font-size:.9rem;padding:.5rem .7rem;border-radius:4px;border:1px solid var(--line);background:var(--card);color:var(--ink);"></select>
+      <button class="act secondary" id="groupPlanBtn" style="margin-left:.6rem;">改看「一起上課」的共同課程規劃</button>
+    </section>
+  </div>
+
+  <div id="results">
+    <div id="reportMeta" class="sub" style="margin-bottom:1.5rem;"></div>
+    <section>
+      <h2>診斷總覽</h2>
+      <div class="stat-row" id="statRow"></div>
+    </section>
+
+    <section>
+      <h2>各主題精熟狀況</h2>
+      <div id="catBars"></div>
+    </section>
+
+    <section>
+      <h2>尚未精熟的學習內容清單</h2>
+      <table>
+        <thead><tr><th>主題</th><th>學習內容</th><th>狀態</th></tr></thead>
+        <tbody id="weakTable"></tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>20週輔導課程規劃（每週4小時，共80小時）</h2>
+      <div id="planList"></div>
+    </section>
+  </div>
+
+  <footer>本工具依「國小學習扶助評量系統」測驗報告格式解析，規劃結果僅供教師參考，請依學生實際狀況調整。</footer>
+</div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const errorBox = document.getElementById('error');
+
+['dragover','dragleave','drop'].forEach(ev=>{
+  dropzone.addEventListener(ev, e=>{
+    e.preventDefault();
+    if(ev==='dragover') dropzone.classList.add('drag');
+    if(ev==='dragleave'||ev==='drop') dropzone.classList.remove('drag');
+    if(ev==='drop' && e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+});
+fileInput.addEventListener('change', e=>{ if(e.target.files.length) handleFile(e.target.files[0]); });
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  document.getElementById('results').style.display='none';
+  document.getElementById('classSection').style.display='none';
+  document.getElementById('toolbar').style.display='none';
+  document.getElementById('filename').textContent='';
+  fileInput.value='';
+  errorBox.style.display='none';
+});
+
+let LAST_PARSED = null;
+
+function handleFile(file){
+  errorBox.style.display='none';
+  document.getElementById('filename').textContent = '已選擇：'+file.name;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const parsed = extractItems(wb);
+      if(!parsed.records.length) throw new Error('找不到可辨識的測驗資料，請確認檔案格式。');
+      LAST_PARSED = parsed;
+      if(parsed.students.length > 1){
+        renderClassOverview(parsed);
+        showStudent(parsed.students[0]);
+      } else {
+        document.getElementById('classSection').style.display='none';
+        showStudent(parsed.students[0] || null);
+      }
+    }catch(err){
+      showError('讀取失敗：'+err.message);
+    }
+  };
+  reader.onerror = ()=> showError('無法讀取檔案，請確認檔案未損毀。');
+  reader.readAsArrayBuffer(file);
+}
+function showError(msg){ errorBox.textContent = msg; errorBox.style.display='block'; }
+
+// Parse workbook: works for any subject (數學/國語文/英語...) and for either a
+// single-student or multi-student「特定學生測驗報告統計表」。 Column B=基本學習內容(或分類)，
+// 欄C=學習表現/學習內容，後面接著 O/△/X 次數欄，再接著每位學生各一欄的判定符號。
+function extractItems(wb){
+  const mathCodeRe = /^([NRS])C?-\d+-\d+(-\d+)?/;
+  const namePattern = /^\*+\d+.+\(\d+年級\)$/;
+  let subject = null;
+  const studentsOrder = [];
+  let flat = [];
+
+  wb.SheetNames.forEach(name=>{
+    const ws = wb.Sheets[name];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+    let studentCols = [];
+    rows.forEach((row, idx)=>{
+      if(!row) return;
+      if(idx===0 && typeof row[0]==='string' && row[0].includes('學習扶助評量系統')){
+        const parts = row[0].split(/-|－/).map(s=>s.trim()).filter(Boolean);
+        const seg = parts.find(p=>!p.includes('學習扶助評量系統') && !/^\d{6}$/.test(p) && !p.includes('測驗報告'));
+        if(seg && !subject) subject = seg;
+        return;
+      }
+      const matches = [];
+      row.forEach((cell,ci)=>{ if(typeof cell==='string' && namePattern.test(cell.trim())) matches.push({name:cell.trim(), idx:ci}); });
+      if(matches.length){
+        studentCols = matches;
+        matches.forEach(m=>{ if(!studentsOrder.includes(m.name)) studentsOrder.push(m.name); });
+      }
+      if(!row[1] || typeof row[1] !== 'string' || !row[2] || typeof row[2] !== 'string') return;
+      const label = row[1].trim();
+      if(label.includes('基本學習內容')) return;
+
+      const m = label.match(mathCodeRe);
+      let cat, code;
+      if(m){
+        cat = m[1] === 'N' ? '數與量' : m[1] === 'R' ? '關係' : '空間與形狀';
+        code = label.split(/[\s。]/)[0].replace(/\.$/,'');
+      } else {
+        cat = label.split(/[_\/]/)[0];
+        code = label;
+      }
+      const desc = (row[2] || '').split(/。|<br>/)[0]+'。';
+
+      const symbolOf = v=>{
+        if(typeof v !== 'string') return null;
+        const t = v.trim();
+        if(/^[OΟＯ○]$/.test(t)) return 'O';
+        if(/^[XＸ×]$/.test(t)) return 'X';
+        if(/^[△▲]$/.test(t)) return 'T';
+        return null;
+      };
+
+      if(studentCols.length){
+        studentCols.forEach(sc=>{
+          const status = symbolOf(row[sc.idx]);
+          if(status) flat.push({cat, code, desc, status, student: sc.name});
+        });
+      } else {
+        // no per-student column found; fall back to the row's own last symbol
+        let status = null;
+        for(let i=row.length-1;i>=0;i--){ status = symbolOf(row[i]); if(status) break; }
+        if(status) flat.push({cat, code, desc, status, student: null});
+      }
+    });
+  });
+
+  const rank = {X:2, T:1, O:0};
+  const map = new Map();
+  flat.forEach(it=>{
+    const key = (it.student||'_')+'|'+it.cat+'|'+it.code+'|'+it.desc;
+    const prev = map.get(key);
+    if(!prev || rank[it.status] > rank[prev.status]) map.set(key, it);
+  });
+
+  // records: one row per unique topic, with a status map keyed by student
+  const topicMap = new Map();
+  map.forEach(it=>{
+    const tkey = it.cat+'|'+it.code+'|'+it.desc;
+    if(!topicMap.has(tkey)) topicMap.set(tkey, {cat: it.cat, code: it.code, desc: it.desc, statuses: {}});
+    topicMap.get(tkey).statuses[it.student || '_'] = it.status;
+  });
+
+  return {subject, students: studentsOrder.length ? studentsOrder : [null], records: Array.from(topicMap.values())};
+}
+
+const TAG_PALETTE = ['c0','c1','c2','c3','c4','c5','c6','c7'];
+function tagClassFor(cat, catOrder){
+  let idx = catOrder.indexOf(cat);
+  if(idx<0){ catOrder.push(cat); idx = catOrder.length-1; }
+  return TAG_PALETTE[idx % TAG_PALETTE.length];
+}
+function shortName(s){ return (s||'').replace(/^\*+\d+/,'').replace(/\s*\(\d+年級\)$/,''); }
+
+function renderClassOverview({subject, students, records}){
+  const section = document.getElementById('classSection');
+  section.style.display = 'block';
+
+  const select = document.getElementById('studentSelect');
+  select.innerHTML = students.map(s=>`<option value="${s}">${shortName(s)}</option>`).join('');
+  select.onchange = ()=> showStudent(select.value);
+  document.getElementById('groupPlanBtn').onclick = showGroupPlan;
+
+  const table = document.getElementById('classTable');
+  const shortNames = students.map(shortName);
+  let html = '<thead><tr><th>學習內容</th>' + shortNames.map(n=>`<th>${n}</th>`).join('') + '<th>弱項人數</th></tr></thead><tbody>';
+  records.forEach(r=>{
+    const cells = students.map(s=>{
+      const st = r.statuses[s] || '—';
+      const cls = st==='O' ? 'O' : st==='T' ? 'T' : st==='X' ? 'X' : '';
+      const label = st==='O' ? 'O' : st==='T' ? '△' : st==='X' ? 'X' : '—';
+      return `<td><span class="status-dot ${cls}">${label}</span></td>`;
+    }).join('');
+    const weakCount = students.filter(s=> r.statuses[s]==='X' || r.statuses[s]==='T').length;
+    html += `<tr><td class="desc-cell">${r.desc}</td>${cells}<td>${weakCount}/${students.length}</td></tr>`;
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+}
+
+function showStudent(studentKey){
+  const parsed = LAST_PARSED;
+  const items = parsed.records
+    .filter(r=> r.statuses[studentKey || '_'])
+    .map(r=> ({cat:r.cat, code:r.code, desc:r.desc, status:r.statuses[studentKey || '_']}));
+  render({subject: parsed.subject, student: studentKey, items});
+  const sel = document.getElementById('studentSelect');
+  if(sel && studentKey) sel.value = studentKey;
+}
+
+function showGroupPlan(){
+  const parsed = LAST_PARSED;
+  const students = parsed.students;
+  const groupItems = parsed.records.map(r=>{
+    const weakStudents = students.filter(s=> r.statuses[s]==='X' || r.statuses[s]==='T');
+    if(!weakStudents.length) return null;
+    return {cat:r.cat, code:r.code, desc:r.desc, status: weakStudents.length===students.length ? 'X' : 'T', weakStudents, totalStudents: students.length};
+  }).filter(Boolean).sort((a,b)=> b.weakStudents.length - a.weakStudents.length);
+
+  document.getElementById('pageTitle').textContent = (parsed.subject ? parsed.subject+' · ' : '') + '全班共同課程規劃';
+  document.getElementById('reportMeta').textContent =
+    ['科目：'+(parsed.subject||'（未知）'), '學生：'+students.map(shortName).join('、')].join('　｜　');
+
+  const catOrder = [];
+  groupItems.forEach(it=>tagClassFor(it.cat, catOrder));
+
+  const universal = groupItems.filter(t=>t.weakStudents.length===students.length).length;
+  const partialCount = groupItems.length - universal;
+  document.getElementById('statRow').innerHTML = `
+    <div class="stat"><div class="n">${students.length}</div><div class="l">學生人數</div></div>
+    <div class="stat bad"><div class="n">${universal}</div><div class="l">全班共同弱點</div></div>
+    <div class="stat warn"><div class="n">${partialCount}</div><div class="l">部分學生弱點</div></div>
+    <div class="stat ok"><div class="n">${parsed.records.length - groupItems.length}</div><div class="l">全班已精熟</div></div>`;
+
+  const catBars = document.getElementById('catBars');
+  catBars.innerHTML = '';
+  catOrder.forEach(c=>{
+    const catItems = parsed.records.filter(r=>r.cat===c);
+    let ok=0, cells=0;
+    catItems.forEach(r=> students.forEach(s=>{ cells++; if(r.statuses[s]==='O') ok++; }));
+    const pct = cells ? Math.round(ok/cells*100) : 0;
+    const div = document.createElement('div');
+    div.className='bar-cat';
+    div.innerHTML = `<div class="lab"><span><span class="tag ${tagClassFor(c,catOrder)}">${c}</span></span><span>全班精熟率 ${pct}%</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>`;
+    catBars.appendChild(div);
+  });
+
+  document.getElementById('weakTable').innerHTML = groupItems.map(t=>`<tr>
+      <td><span class="tag ${tagClassFor(t.cat,catOrder)}">${t.cat}</span></td>
+      <td>${t.desc}</td>
+      <td>${t.weakStudents.length}/${students.length} 人需加強${t.weakStudents.length<students.length ? '（'+t.weakStudents.map(shortName).join('、')+'）' : '（全班）'}</td>
+    </tr>`).join('');
+
+  buildPlan(groupItems, catOrder);
+
+  document.getElementById('results').style.display='block';
+  document.getElementById('toolbar').style.display='flex';
+  document.getElementById('results').scrollIntoView({behavior:'smooth'});
+}
+
+function render({subject, student, items}){
+  document.getElementById('pageTitle').textContent =
+    (subject ? subject+' · ' : '') + '學習診斷 · 20週課程規劃';
+  document.getElementById('reportMeta').textContent =
+    [subject && '科目：'+subject, student && '學生：'+student].filter(Boolean).join('　｜　');
+
+  const catOrder = [];
+  items.forEach(it=>tagClassFor(it.cat, catOrder));
+
+  const total = items.length;
+  const mastered = items.filter(i=>i.status==='O').length;
+  const partial = items.filter(i=>i.status==='T').length;
+  const weakItems = items.filter(i=>i.status!=='O');
+  const weak = weakItems.length;
+
+  document.getElementById('statRow').innerHTML = `
+    <div class="stat"><div class="n">${total}</div><div class="l">總檢測項目</div></div>
+    <div class="stat ok"><div class="n">${mastered}</div><div class="l">已精熟</div></div>
+    <div class="stat warn"><div class="n">${partial}</div><div class="l">部分精熟</div></div>
+    <div class="stat bad"><div class="n">${weak-partial}</div><div class="l">尚未精熟</div></div>`;
+
+  const catBars = document.getElementById('catBars');
+  catBars.innerHTML = '';
+  catOrder.forEach(c=>{
+    const catItems = items.filter(i=>i.cat===c);
+    if(!catItems.length) return;
+    const ok = catItems.filter(i=>i.status==='O').length;
+    const pct = Math.round(ok/catItems.length*100);
+    const div = document.createElement('div');
+    div.className='bar-cat';
+    div.innerHTML = `<div class="lab"><span><span class="tag ${tagClassFor(c,catOrder)}">${c}</span></span><span>${ok}/${catItems.length} 精熟（${pct}%）</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>`;
+    catBars.appendChild(div);
+  });
+
+  const tbody = document.getElementById('weakTable');
+  tbody.innerHTML = '';
+  weakItems.forEach(it=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="tag ${tagClassFor(it.cat,catOrder)}">${it.cat}</span></td>
+      <td>${it.desc}</td>
+      <td>${it.status==='X' ? '未通過' : '部分通過'}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  buildPlan(weakItems, catOrder);
+
+  document.getElementById('results').style.display='block';
+  document.getElementById('toolbar').style.display='flex';
+  document.getElementById('results').scrollIntoView({behavior:'smooth'});
+}
+
+function buildPlan(weakItems, catOrder){
+  const planList = document.getElementById('planList');
+  planList.innerHTML = '';
+  const TOTAL_WEEKS = 20;
+  // review/comprehensive weeks at 5,10,15,20
+  const reviewWeeks = new Set([5,10,15,20]);
+  const teachingWeeks = [];
+  for(let w=1; w<=TOTAL_WEEKS; w++) if(!reviewWeeks.has(w)) teachingWeeks.push(w);
+
+  // order weak items: worse status first (X before T), keep original order otherwise
+  const ordered = [...weakItems].sort((a,b)=> (a.status==='X'?0:1) - (b.status==='X'?0:1));
+
+  // distribute items across teaching weeks; if fewer items than weeks, allow repeat with deepen note
+  const assignment = {};
+  teachingWeeks.forEach(w=>assignment[w]=[]);
+  if(ordered.length <= teachingWeeks.length){
+    // one topic per week, spread evenly; extra weeks become deeper practice on hardest topics
+    teachingWeeks.forEach((w,idx)=>{
+      if(idx < ordered.length){
+        assignment[w].push(ordered[idx]);
+      } else {
+        // repeat cycle for reinforcement
+        assignment[w].push(ordered[idx % ordered.length]);
+      }
+    });
+  } else {
+    // more items than weeks: pack multiple per week
+    const perWeek = Math.ceil(ordered.length / teachingWeeks.length);
+    let i=0;
+    teachingWeeks.forEach(w=>{
+      for(let k=0;k<perWeek && i<ordered.length;k++,i++) assignment[w].push(ordered[i]);
+    });
+  }
+
+  for(let w=1; w<=TOTAL_WEEKS; w++){
+    const card = document.createElement('div');
+    card.className = 'weekcard' + (reviewWeeks.has(w) ? ' review' : '');
+    if(reviewWeeks.has(w)){
+      card.innerHTML = `<div class="wk-head"><span class="wnum">第 ${w} 週 · 綜合複習與診斷測驗</span><span class="whours">4小時</span></div>
+        <ul><li>複習前 4 週所學單元，進行錯題重練</li>
+        <li>安排一次小型形成性評量，確認精熟狀況</li>
+        <li>依評量結果調整後續 4 週教學重點</li></ul>`;
+    } else {
+      const topics = assignment[w] || [];
+      const lis = topics.map(t=>{
+        const note = t.weakStudents ? `<div style="font-size:.75rem;opacity:.65;margin-top:.15rem;">${t.weakStudents.length===t.totalStudents ? '全班皆需加強' : '個別加強：'+t.weakStudents.map(shortName).join('、')}</div>` : '';
+        return `<li><span class="tag ${tagClassFor(t.cat,catOrder)}">${t.cat}</span><br>${t.desc}${note}</li>`;
+      }).join('');
+      const hoursNote = topics.length>1 ? `每單元約 ${(4/topics.length).toFixed(1)} 小時：概念講解＋練習` : '概念講解 2 小時＋練習鞏固 2 小時';
+      card.innerHTML = `<div class="wk-head"><span class="wnum">第 ${w} 週</span><span class="whours">4小時</span></div>
+        <ul>${lis || '<li>綜合練習與個別指導</li>'}</ul>
+        <div style="font-family:-apple-system,'PingFang TC',sans-serif;font-size:.78rem;opacity:.6;margin-top:.5rem;">${hoursNote}</div>`;
+    }
+    planList.appendChild(card);
+  }
+}
+</script>
+</body>
+</html>
