@@ -149,7 +149,7 @@ footer{margin-top:3rem;font-size:.75rem;opacity:.5;font-family:-apple-system,"Pi
     <section style="margin-top:1.8rem;">
       <label class="sub" style="display:block;margin-bottom:.5rem;font-weight:600;" for="studentSelect">查看個別學生診斷與課程規劃</label>
       <select id="studentSelect" style="font-family:-apple-system,'PingFang TC',sans-serif;font-size:.9rem;padding:.5rem .7rem;border-radius:4px;border:1px solid var(--line);background:var(--card);color:var(--ink);"></select>
-      <button class="act secondary" id="groupPlanBtn" style="margin-left:.6rem;">改看「一起上課」的共同課程規劃</button>
+      <button class="act secondary" id="groupPlanBtn" style="margin-left:.6rem;">查看「一起上課」共同課程規劃</button>
     </section>
   </div>
 
@@ -220,7 +220,7 @@ function handleFile(file){
       LAST_PARSED = parsed;
       if(parsed.students.length > 1){
         renderClassOverview(parsed);
-        showStudent(parsed.students[0]);
+        showGroupPlan();
       } else {
         document.getElementById('classSection').style.display='none';
         showStudent(parsed.students[0] || null);
